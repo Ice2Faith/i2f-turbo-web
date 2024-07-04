@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FireVideo</title>
+
+    <!-- unpkg.com 国内镜像 unpkg.zhimg.com -->
+
+    <!-- vue2 -->
+    <script src="https://unpkg.zhimg.com/vue@2.6/dist/vue.min.js"></script>
+
+    <!-- 引入网络 -->
+    <script src="https://unpkg.zhimg.com/axios/dist/axios.min.js"></script>
+
+
+    <!-- element-ui -->
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.zhimg.com/element-ui/lib/theme-chalk/index.css">
+    <!-- 引入组件库 -->
+    <script src="https://unpkg.zhimg.com/element-ui/lib/index.js"></script>
+
+</head>
+<body>
+<div>
+    <textarea style="display:none;z-index: 1;" id="downUrls" rows="2"></textarea>
+    <span id="copytips" style="display:none;">复制成功！</span>
+</div>
+<div id="app">
+    <el-row type="flex" jusitify="justify" :gutter="20">
+        <el-col>
+            <el-badge :value="count.current" class="item">
+                <el-button type="primary" size="small" @click="copyTabUrls()">复制当页链接</el-button>
+            </el-badge>
+            <el-button type="primary" size="small" @click="cleanTabUrls()">清空当页</el-button>
+            <el-button type="primary" size="small" @click="refreshTabUrls($event.currentTarget)">刷新当页</el-button>
+        </el-col>
+        <el-col>
+            <el-badge :value="count.all" class="item">
+                <el-button type="primary" size="small" @click="copyAllUrls()">复制全页链接</el-button>
+            </el-badge>
+            <el-button type="primary" size="small" @click="cleanAllUrls()">清空全页面</el-button>
+        </el-col>
+    </el-row>
+    <el-tabs v-model="activeTabName" @tab-click="handleTabClick">
+        <el-tab-pane label="主页-收藏" name="mainFav">
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.mainFav.data" :span="4">
+                        <a :name="'mainFav-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.mainFav,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="primary" size="small" v-show="iShowAdd(tabs.mainFav,item)" @click="addCollect(item,$event.currentTarget)">+</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="center" @click="loadMoreData($event.currentTarget)">加载更多</el-divider>
+            </el-row>
+
+        </el-tab-pane>
+
+        <el-tab-pane label="首页-收藏" name="mineFav">
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.mineFav.data" :span="4">
+                        <a :name="'mineFav-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.mineFav,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="primary" size="small" v-show="iShowAdd(tabs.mineFav,item)" @click="addCollect(item,$event.currentTarget)">+</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="center" @click="loadMoreData($event.currentTarget)">加载更多</el-divider>
+            </el-row>
+
+        </el-tab-pane>
+
+        <el-tab-pane label="首页-发现" name="mainRec">
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.mainRec.data" :span="4">
+                        <a :name="'mainRec-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.mainRec,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="primary" size="small" v-show="iShowAdd(tabs.mainRec,item)" @click="addCollect(item,$event.currentTarget)">+</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="center" @click="loadMoreData($event.currentTarget)">加载更多</el-divider>
+            </el-row>
+
+        </el-tab-pane>
+        <el-tab-pane label="首页-最新" name="mainNew">
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.mainNew.data" :span="4">
+                        <a :name="'mainNew-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.mainNew,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="primary" size="small" v-show="iShowAdd(tabs.mainNew,item)" @click="addCollect(item,$event.currentTarget)">+</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="center" @click="loadMoreData($event.currentTarget)">加载更多</el-divider>
+            </el-row>
+        </el-tab-pane>
+        <el-tab-pane label="视频-舞蹈" name="videoDance">
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.videoDance.data" :span="4">
+                        <a :name="'videoDance-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.videoDance,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="primary" size="small" v-show="iShowAdd(tabs.videoDance,item)" @click="addCollect(item,$event.currentTarget)">+</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="center" @click="loadMoreData($event.currentTarget)">加载更多</el-divider>
+            </el-row>
+        </el-tab-pane>
+        <el-tab-pane label="更多-收藏" name="moreFav">
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.moreFav.data" :span="4">
+                        <a :name="'moreFav-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.moreFav,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="primary" size="small" v-show="iShowAdd(tabs.moreFav,item)" @click="addCollect(item,$event.currentTarget)">+</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="center" @click="loadMoreData($event.currentTarget)">加载更多</el-divider>
+
+            </el-row>
+        </el-tab-pane>
+        <el-tab-pane label="更多-下载" name="moreDownload">
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.moreDownload.data" :span="4">
+                        <a :name="'moreDownload-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.moreDownload,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="primary" size="small" v-show="iShowAdd(tabs.moreDownload,item)" @click="addCollect(item,$event.currentTarget)">+</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="center" @click="loadMoreData($event.currentTarget)">加载更多</el-divider>
+
+            </el-row>
+        </el-tab-pane>
+        <el-tab-pane label="更多-播放" name="morePlay">
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.morePlay.data" :span="4">
+                        <a :name="'morePlay-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.morePlay,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="primary" size="small" v-show="iShowAdd(tabs.morePlay,item)" @click="addCollect(item,$event.currentTarget)">+</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="center" @click="loadMoreData($event.currentTarget)">加载更多</el-divider>
+
+            </el-row>
+        </el-tab-pane>
+
+        <el-tab-pane label="收集" name="collect">
+            <span slot="label">
+                收集
+                <el-badge  :value="tabs.collect.data.length" >
+
+                </el-badge>
+            </span>
+            <el-row style="overflow:auto;width: 100%;height: calc(100vh - 125px)">
+                <el-row>
+                    <el-col v-for="(item,index) in tabs.collect.data" :span="4">
+                        <a :name="'collect-'+index"></a>
+                        <el-card shadow="never" style="width:100%;height:100%;">
+                            <el-image
+                                    style="width: 100%; height: 230px;"
+                                    :src="item.pic"
+                                    fit="cover"></el-image>
+                            <el-row type="flex" jusitify="justify" :gutter="20">
+                                <el-col>
+                                    <el-button :type="isInPlay(tabs.collect,item)?'success':'primary'" size="small" @click="playVideo(item,index)">播放</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="danger" size="small" @click="deleteCollect(item,index)">-</el-button>
+                                </el-col>
+                                <el-col>
+                                    <el-button type="success" size="small"
+                                               @click="downloadVideo(item,$event.currentTarget)">下载
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </el-card>
+                    </el-col>
+                </el-row>
+
+            </el-row>
+        </el-tab-pane>
+    </el-tabs>
+    <el-drawer
+            
+            :visible.sync="play.show"
+            v-if="play.show"
+            :key="play.url"
+            :size="play.fullscreen?'100%':'75%'"
+            class="drawer-video"
+            append-to-body>
+        <span slot="title">
+            <el-button type="primary" size="small" :icon="play.fullscreen?'el-icon-crop':'el-icon-full-screen'"
+                    @click="switchFullScreen()">
+            </el-button>
+            <span>[{{play.index+1}}]&emsp;{{play.title}}</span>
+            <span style="float: right;margin-right: 50px;">
+                <span>本页{{count.current}}</span>
+                <el-divider direction="vertical"></el-divider>
+                <span>全部{{count.all}}</span>
+                <el-divider direction="vertical"></el-divider>
+                <span>收集{{tabs.collect.data.length}}</span>
+                <el-divider direction="vertical"></el-divider>
+                <el-button type="success" size="small"
+                        @click="playPrev()">&lt;&lt;&lt;
+                </el-button>
+                <el-button type="primary" size="small"  v-show="!tabs.collect.map[play.key]"
+                        @click="playAdd($event.currentTarget)">+
+                </el-button>
+                <el-button type="success" size="small"
+                        @click="playNext()">&gt;&gt;&gt;
+                </el-button>
+            </span>
+        </span>
+        <video width="100%" height="100%"
+               style="background-color: #444"
+               controls autoplay @ended="onPlayEnd">
+            <source :src="play.url" type="video/mp4">
+        </video>
+    </el-drawer>
+</div>
+</body>
+<script>
+    // 定义默认的参数
+    axios.defaults.headers['Content-Type'] = 'application/json'
+
+    Vue.prototype.$axios = axios.create({
+        baseURL: 'http://localhost:8080',
+        timeout: 30 * 60 * 1000,
+        responseType: 'json'
+    })
+
+    Vue.prototype.$download = axios.create({
+        baseURL: 'http://localhost:8080',
+        timeout: 30 * 60 * 1000,
+        responseType: "blob"
+    })
+
+
+    // 定义响应拦截
+    Vue.prototype.$download.interceptors.response.use(res => {
+        if (res.data) {
+            const blob = new Blob([res.data])
+            const downloadElement = document.createElement('a')
+            const href = window.URL.createObjectURL(blob)
+            let filename = ''
+            let contentDisposition = '' // 从response的headers中获取filename, 后端response.setHeader("Content-disposition", "attachment; filename=xxxx.docx") 设置的文件名;
+            Object.keys(res.headers).forEach((key, index) => {
+                if (key.toLowerCase() == 'content-disposition') {
+                    contentDisposition = res.headers[key]
+                }
+            })
+            if (contentDisposition && contentDisposition != '') {
+                const patten = new RegExp('filename=([^;]+\\.[^\\.;]+);*')
+                const result = patten.exec(contentDisposition)
+                filename = decodeURI(escape(result[1])) // 处理文件名,解决中文乱码问题
+            } else {
+                let url = res.config.url + '';
+                let idx = url.lastIndexOf('?')
+                if (idx >= 0) {
+                    url = url.substring(0, idx)
+                }
+                idx = url.lastIndexOf('/')
+                if (idx >= 0) {
+                    url = url.substring(idx + 1)
+                }
+                if (url != '') {
+                    filename = decodeURIComponent(url)
+                }
+            }
+            if (!filename || filename == '') {
+                filename = 'download.data'
+            }
+            downloadElement.style.display = 'none'
+            downloadElement.href = href
+            downloadElement.download = filename // 下载后文件名
+            document.body.appendChild(downloadElement)
+            downloadElement.click() // 点击下载
+            document.body.removeChild(downloadElement) // 下载完成移除元素
+            window.URL.revokeObjectURL(href) // 释放掉blob对象
+        }
+        return res.data
+    }, error => {
+        console.log(error)
+    })
+
+    var app = new Vue({
+        el: '#app',
+        data: {
+            activeTabName: 'mainRec',
+            streamLbList: [
+                '45.11.0.100',
+                '45.11.0.102',
+                '45.11.0.103',
+                '45.11.0.216',
+                '45.11.0.240',
+                '45.11.0.246',
+                '45.11.0.247',
+                '45.11.0.248',
+                '45.11.0.249',
+                '45.11.0.251',
+                // '45.11.0.254',
+            ],
+            streamUrl: 'http://LBHOST:9455/stream.php?format_id=22&video_id=',
+            play: {
+                title: '视频播放',
+                url: '',
+                show: false,
+                fullscreen: false,
+                index: 0,
+                key: ''
+            },
+            count: {
+                current: 0,
+                all: 0
+            },
+            pub: {
+                auth_code: '2923tJpjbjLWiuyE2ioOpHgwlkjznhVFbZYdWUU6pHox2WLPQ9cR52W3Upu91g1CSF8M+bEbbZDWlywaFH4BH+k',
+                sign: '4DE876D3A8A7BFE4E1D1FE72BEDB7939',
+                device_id: '00000000-48cd-3a0a-48cd-3a0a00000000',
+                pro_id: 0
+            },
+            tabs: {
+                mainFav: {
+                    url: 'http://81.70.181.238:80/fav/getList',
+                    route: (data) => data.data.list,
+                    play: {
+                        title: (item) => item.id,
+                        url: (item) => item.src,
+                        key: (item) => item.src,
+                    },
+                    data: [],
+                    query: {
+                        page: 1,
+                        limit: 30
+                    }
+                },
+                mineFav: {
+                    url: 'http://81.70.213.11:80/you_fav/getList',
+                    route: (data) => data.data.list,
+                    play: {
+                        title: (item) => app.escapeHtml(item.title),
+                        url: (item) => {
+                            let idx = Math.floor(Math.random() * app.streamLbList.length)
+                            let host = app.streamLbList[idx]
+                            return app.streamUrl.replace('LBHOST', host) + item.video_id
+                        },
+                        key: (item) => item.video_id,
+                    },
+                    data: [],
+                    query: {
+                        page: 1,
+                        limit: 30
+                    }
+                },
+                mainRec: {
+                    url: 'http://81.70.213.11:80/hot_video/getRandList',
+                    route: (data) => data.data.list,
+                    play: {
+                        title: (item) => item.id,
+                        url: (item) => item.src,
+                        key: (item) => item.src,
+                    },
+                    data: [],
+                    query: {
+                        page: 1,
+                        limit: 30
+                    }
+                },
+                mainNew: {
+                    url: 'http://81.70.213.11:80/hot_video/getList',
+                    route: (data) => data.data.list,
+                    play: {
+                        title: (item) => item.id,
+                        url: (item) => item.src,
+                        key: (item) => item.src,
+                    },
+                    data: [],
+                    query: {
+                        page: 1,
+                        limit: 30
+                    }
+                },
+                videoDance: {
+                    url: 'http://81.70.213.11/you_feed/getList',
+                    route: (data) => data.data.list,
+                    play: {
+                        title: (item) => app.escapeHtml(item.title),
+                        url: (item) => {
+                            let idx = Math.floor(Math.random() * app.streamLbList.length)
+                            let host = app.streamLbList[idx]
+                            return app.streamUrl.replace('LBHOST', host) + item.video_id
+                        },
+                        key: (item) => item.video_id,
+                    },
+                    data: [],
+                    query: {
+                        type: 1,
+                        page: 1,
+                        limit: 30
+                    }
+                },
+                moreFav: {
+                    url: 'http://81.70.213.11:80/you_new_fav/getList',
+                    route: (data) => data.data.list,
+                    play: {
+                        title: (item) => app.escapeHtml(item.title),
+                        url: (item) => {
+                            let idx = Math.floor(Math.random() * app.streamLbList.length)
+                            let host = app.streamLbList[idx]
+                            return app.streamUrl.replace('LBHOST', host) + item.video_id
+                        },
+                        key: (item) => item.video_id,
+                    },
+                    data: [],
+                    query: {
+                        page: 1,
+                        limit: 30
+                    }
+                },
+                moreDownload: {
+                    url: 'http://81.70.213.11:80/you_new_down/getList',
+                    route: (data) => data.data.list,
+                    play: {
+                        title: (item) => app.escapeHtml(item.title),
+                        url: (item) => {
+                            let idx = Math.floor(Math.random() * app.streamLbList.length)
+                            let host = app.streamLbList[idx]
+                            return app.streamUrl.replace('LBHOST', host) + item.video_id
+                        },
+                        key: (item) => item.video_id,
+                    },
+                    data: [],
+                    query: {
+                        page: 1,
+                        limit: 30
+                    }
+                },
+                morePlay: {
+                    url: 'http://81.70.213.11:80/you_new_play/getList',
+                    route: (data) => data.data.list,
+                    play: {
+                        title: (item) => app.escapeHtml(item.title),
+                        url: (item) => {
+                            let idx = Math.floor(Math.random() * app.streamLbList.length)
+                            let host = app.streamLbList[idx]
+                            return app.streamUrl.replace('LBHOST', host) + item.video_id
+                        },
+                        key: (item) => item.video_id,
+                    },
+                    data: [],
+                    query: {
+                        page: 1,
+                        limit: 30
+                    }
+                },
+                collect: {
+                    route: (data) => data,
+                    play: {
+                        title: (item) => item.title,
+                        url: (item) => item.url,
+                        key: (item) => item.key,
+                    },
+                    data: [],
+                    map:{}
+                }
+
+            }
+        },
+        mounted() {
+            this.loadMoreData()
+        },
+        created() {
+
+        },
+        methods: {
+            iShowAdd(tabMeta,item){
+                return !this.tabs.collect.map[tabMeta.play.key(item)]
+            },
+            isInPlay(tabMeta,item){
+                let currMeta = this.tabs[this.activeTabName]
+                return currMeta==tabMeta && tabMeta.play.key(item)==this.play.key
+            },
+            switchFullScreen(){
+                this.play.fullscreen=!this.play.fullscreen
+            },
+            handleTabClick() {
+                let tabMeta = this.tabs[this.activeTabName]
+                if (tabMeta.data.length == 0) {
+                    this.loadMoreData()
+                }
+                this.updateCount()
+            },
+            loadMoreData(dom,callback) {
+                let tabMeta = this.tabs[this.activeTabName]
+                if (dom) {
+                    dom.style.transform = 'scale(0.75)'
+                }
+                this.$axios({
+                    url: tabMeta.url,
+                    method: 'get',
+                    params: Object.assign({}, this.pub, tabMeta.query)
+                }).then(({data}) => {
+                    tabMeta.data = [...tabMeta.data, ...tabMeta.route(data)]
+                    tabMeta.query.page = tabMeta.query.page + 1
+                    this.updateCount()
+                    if(callback){
+                        callback(tabMeta)
+                    }
+                }).finally(() => {
+                    if (dom) {
+                        dom.style.transform = 'scale(1)'
+                    }
+                })
+            },
+            updateCount() {
+                let tabMeta = this.tabs[this.activeTabName]
+                this.count.current = tabMeta.data.length
+                let count = 0
+                let _this = this
+                Object.keys(this.tabs).forEach(function (key) {
+                    count += _this.tabs[key].data.length
+                })
+                this.count.all = count
+                this.$forceUpdate()
+            },
+            playVideo(item, index) {
+                let tabMeta = this.tabs[this.activeTabName]
+                this.play.index = index
+                this.play.title = tabMeta.play.title(item)
+                this.play.url = tabMeta.play.url(item)
+                this.play.key=tabMeta.play.key(item)
+                this.play.show = true
+                let link=document.createElement('a')
+                link.href=`#${this.activeTabName}-${this.play.index}`
+                link.click()
+                this.onPlayError()
+            },
+            downloadVideo(item, dom) {
+                let tabMeta = this.tabs[this.activeTabName]
+                let title = tabMeta.play.title(item)
+                let url = tabMeta.play.url(item)
+                dom.style.transform = 'scale(0.75)'
+
+                this.$download({
+                    url: url,
+                    method: 'get'
+                }).finally(() => {
+                    dom.style.transform = 'scale(1)'
+                })
+            },
+            addCollect(item,dom){
+                let tabMeta = this.tabs[this.activeTabName]
+                let title = tabMeta.play.title(item)
+                let url = tabMeta.play.url(item)
+                let pic = item.pic
+                let key=tabMeta.play.key(item)
+                let exItem = this.tabs.collect.data.find((item)=>item.key==key)
+                if(!exItem){
+                    if(!this.tabs.collect.map[key]){
+                        this.tabs.collect.data.push({
+                            title,
+                            url,
+                            pic,
+                            key
+                        })
+                        this.tabs.collect.map[key]=true
+                    }
+                    this.updateCount()
+                }
+            },
+            deleteCollect(item,index){
+                let elems=this.tabs.collect.data.splice(index,1)
+                elems.forEach(e=>{
+                    delete this.tabs.collect.map[e.key]
+                })
+                this.updateCount()
+            },
+            escapeHtml(html) {
+                let dom = document.createElement('div')
+                dom.innerHTML = html
+                return dom.innerText
+            },
+            copyTabUrls() {
+                let tabMeta = this.tabs[this.activeTabName]
+                let _this = this
+                let urlStr = '';
+                tabMeta.data.forEach(function (item) {
+                    let url = tabMeta.play.url(item)
+                    urlStr += url + '\n';
+                })
+                this.doCopyAction(urlStr)
+            },
+            cleanTabUrls() {
+                let tabMeta = this.tabs[this.activeTabName]
+                tabMeta.data = []
+                this.updateCount()
+            },
+            refreshTabUrls(dom){
+                let tabMeta = this.tabs[this.activeTabName]
+                tabMeta.query.page=0
+                tabMeta.data=[]
+                if (dom) {
+                    dom.style.transform = 'scale(0.75)'
+                }
+                this.$axios({
+                    url: tabMeta.url,
+                    method: 'get',
+                    params: Object.assign({}, this.pub, tabMeta.query)
+                }).then(({data}) => {
+                    tabMeta.data = [...tabMeta.data, ...tabMeta.route(data)]
+                    tabMeta.query.page = tabMeta.query.page + 1
+                    this.updateCount()
+                }).finally(() => {
+                    if (dom) {
+                        dom.style.transform = 'scale(1)'
+                    }
+                })
+            },
+            copyAllUrls() {
+                let _this = this
+                let urlStr = '';
+                let keyMap={}
+                Object.keys(this.tabs).forEach(function (key) {
+                    let tabMeta = _this.tabs[key]
+                    tabMeta.data.forEach(function (item) {
+                        let ukey = tabMeta.play.key(item)
+                        if(!keyMap[ukey]){
+                            keyMap[ukey]=true
+                            let url = tabMeta.play.url(item)
+                            urlStr += url + '\n';
+                        }
+                    })
+                })
+                this.doCopyAction(urlStr)
+            },
+            cleanAllUrls() {
+                let _this = this
+                Object.keys(this.tabs).forEach(function (key) {
+                    let tabMeta = _this.tabs[key]
+                    tabMeta.data = []
+                })
+                this.updateCount()
+            },
+            doCopyAction(urlStr) {
+                let input = document.querySelector("#downUrls");
+                input.style.display = "block";
+                input.value = urlStr;
+                let _this = this
+                setTimeout(function () {
+                    _this.copyUrls2Clipbord();
+                }, 1000);
+            },
+            copyUrls2Clipbord() {
+                let input = document.querySelector("#downUrls");
+                input.focus();
+                input.select();
+                input.setSelectionRange(0, 999999);
+                if (document.execCommand('copy')) {
+                    document.execCommand('copy');
+                    document.querySelector("#copytips").style.display = "block";
+                    setTimeout(function () {
+                        document.querySelector("#copytips").style.display = "none";
+                    }, 1200);
+                }
+                input.style.display = "none";
+            },
+            onPlayEnd() {
+                let tabMeta = this.tabs[this.activeTabName]
+                let nextIndex=this.play.index + 1
+                this.play.index = nextIndex % tabMeta.data.length
+                this.play.title = tabMeta.play.title(tabMeta.data[this.play.index])
+                this.play.url = tabMeta.play.url(tabMeta.data[this.play.index])
+                this.play.key=tabMeta.play.key(tabMeta.data[this.play.index])
+                let link=document.createElement('a')
+                link.href=`#${this.activeTabName}-${this.play.index}`
+                link.click()
+                this.onPlayError()
+            },
+            onPlayError(){
+                setTimeout(()=>{
+                    let player=document.querySelector('video')
+                    if(!player){
+                        return
+                    }
+                    if(player.networkState==3){
+                        ELEMENT.Message.error('视频播放失败')
+                    }
+                },1500)
+            },
+            playNext(){
+                let tabMeta = this.tabs[this.activeTabName]
+                let nextIndex=this.play.index + 1
+                if(nextIndex>=tabMeta.data.length){
+                    this.loadMoreData(null,(meta)=>{
+                        this.play.index = nextIndex % tabMeta.data.length
+                        this.play.title = tabMeta.play.title(tabMeta.data[this.play.index])
+                        this.play.url = tabMeta.play.url(tabMeta.data[this.play.index])
+                        this.play.key=tabMeta.play.key(tabMeta.data[this.play.index])
+                        let link=document.createElement('a')
+                        link.href=`#${this.activeTabName}-${this.play.index}`
+                        link.click()
+                        this.onPlayError()
+                    })
+                }else{
+                    this.play.index = nextIndex % tabMeta.data.length
+                    this.play.title = tabMeta.play.title(tabMeta.data[this.play.index])
+                    this.play.url = tabMeta.play.url(tabMeta.data[this.play.index])
+                    this.play.key=tabMeta.play.key(tabMeta.data[this.play.index])
+                    let link=document.createElement('a')
+                    link.href=`#${this.activeTabName}-${this.play.index}`
+                    link.click()
+                    this.onPlayError()
+                }
+                
+            },
+            playPrev(){
+                let tabMeta = this.tabs[this.activeTabName]
+                let nextIndex=this.play.index - 1
+                if(nextIndex<0){
+                    nextIndex=tabMeta.data.length-1
+                }
+                this.play.index = nextIndex % tabMeta.data.length
+                this.play.title = tabMeta.play.title(tabMeta.data[this.play.index])
+                this.play.url = tabMeta.play.url(tabMeta.data[this.play.index])
+                this.play.key=tabMeta.play.key(tabMeta.data[this.play.index])
+                let link=document.createElement('a')
+                link.href=`#${this.activeTabName}-${this.play.index}`
+                link.click()
+                this.onPlayError()
+            },
+            playAdd(dom){
+                let tabMeta = this.tabs[this.activeTabName]
+                let item=tabMeta.data[this.play.index]
+                if(item){
+                    this.addCollect(item,null)
+                }
+            }
+        }
+    })
+
+</script>
+<style>
+    /*整体部分*/
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    /*滑动轨道*/
+    ::-webkit-scrollbar-track {
+        border-radius: 0px;
+        background: none;
+    }
+
+    /*滑块*/
+    ::-webkit-scrollbar-thumb {
+        border-radius: 5px;
+        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2);
+        background-color: rgba(255, 255, 255, 0.75);
+    }
+
+    /*滑块效果*/
+    ::-webkit-scrollbar-thumb:hover {
+        border-radius: 5px;
+        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2);
+        background-color: rgba(85, 85, 85, 0.4);
+    }
+
+    .drawer-video .el-drawer__header {
+        padding: 5px !important;
+        margin: 0 !important;
+        background-color: #444;
+        color: white;
+        border-bottom: solid 1px #777;
+    }
+
+    .drawer-video .el-drawer__body {
+        overflow: hidden;
+    }
+</style>
+</html>

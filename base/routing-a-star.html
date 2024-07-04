@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Routing A Star</title>
+</head>
+<body>
+<canvas id="canvas" style="width: 78vw;height: 96vh;float:left;"></canvas>
+<div style="width: 18vw;height: 96vh;float: right;border:solid 1px #eee;">
+	<div class="form-item">
+        <span class="form-item-label">演示模式</span>
+        <span class="form-item-content">
+            <input id="displayMode" type="checkbox"/>
+        </span>
+    </div>
+	<hr/>
+    <div class="form-item">
+        <span class="form-item-label">宽度：</span>
+        <span class="form-item-content">
+            <input id="mapWidth" type="number" value="25"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">高度：</span>
+        <span class="form-item-content">
+            <input id="mapHeight" type="number" value="25"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">墙体比例：</span>
+        <span class="form-item-content">
+            <input id="wallRate" type="number" value="0.3"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">动画帧时间：</span>
+        <span class="form-item-content">
+            <input id="sleepTime" type="number" value="30"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">动画帧采样率：</span>
+        <span class="form-item-content">
+            <input id="sleepTriggerRate" type="number" value="1"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">终点倾向率：</span>
+        <span class="form-item-content">
+            <input id="endPosRate" type="number" value="0.5"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">显示连接线：</span>
+        <span class="form-item-content">
+            <input id="drawLink" type="checkbox" checked="checked"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">渐变着色：</span>
+        <span class="form-item-content">
+            <input id="smoothColor" type="checkbox" checked="checked"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">显示权重：</span>
+        <span class="form-item-content">
+            <input id="drawWeight" type="checkbox" checked="checked"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">完整权重：</span>
+        <span class="form-item-content">
+            <input id="drawWeightAll" type="checkbox" checked="checked"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">八向移动：</span>
+        <span class="form-item-content">
+            <input id="moveDirection8" type="checkbox"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">开启优选路径：</span>
+        <span class="form-item-content">
+            <input id="openBoost" type="checkbox" checked="checked"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-content">
+            <button class="form-button" id="btnInitial">随机生成</button>
+            <button class="form-button" id="btnRun">开始</button>
+            <span style="border-left: solid 1px #ddd;width: 0px"></span>
+            <button class="form-button" id="btnExec">执行</button>
+        </span>
+    </div>
+    <div class="form-item">
+        <span id="resultText"></span>
+    </div>
+	<hr/>
+
+	<div class="form-item operation-tips">
+        值说明：<br/>
+			&emsp;&emsp;左上角(history)：表示该点到起点的距离权重<br/>
+			&emsp;&emsp;右上角(predict)：表示该点到终点的距离权重<br/>
+			&emsp;&emsp;中间值(sum)：表示该点的综合距离权重<br/>
+			&emsp;&emsp;sum=history*(1-endRate)+predict*endRate<br/>
+			&emsp;&emsp;终点倾向率(endRate)：表示倾向于终点的权重，值为0.5时，是传统A*算法<br/>
+			大于0.5时，偏向于尽快结束算法，得到的结果不一定是最短路径，在大多数情况下，效果都不错，能够提升算法效率<br/>
+			小于0.5时，则逐渐退化为填充查找算法，得到结果较慢<br/>
+    </div>
+</div>
+</body>
+
+<script>
+
+
+    window.onload = () => {
+        let context = initContext()
+        document.getElementById('btnExec').onclick = () => {
+            main(context)
+        }
+        document.getElementById('btnRun').onclick = () => {
+            applyUiSetting(context)
+
+            context.cleanMap()
+
+            drawMap(context)
+
+            run(context)
+        }
+        document.getElementById('btnInitial').onclick = () => {
+            applyUiSetting(context)
+
+            context.initMap()
+
+            drawMap(context)
+        }
+
+		document.getElementById('displayMode').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('wallRate').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('sleepTime').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('sleepTriggerRate').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('endPosRate').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('drawLink').onchange=()=>{
+			updateUiSetting(context)
+		}
+        document.getElementById('smoothColor').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('drawWeight').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('drawWeightAll').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('moveDirection8').onchange=()=>{
+			updateUiSetting(context)
+		}
+		document.getElementById('openBoost').onchange=()=>{
+			updateUiSetting(context)
+		}
+
+        main(context)
+    }
+
+    function main(context) {
+
+        applyUiSetting(context)
+
+        context.initMap()
+
+        drawMap(context)
+
+
+        run(context)
+    }
+
+    function run(context) {
+        document.getElementById('btnExec').setAttribute('disabled', 'disabled')
+        document.getElementById('btnRun').setAttribute('disabled', 'disabled')
+        document.getElementById('btnInitial').setAttribute('disabled', 'disabled')
+        document.getElementById('resultText').innerText = ''
+        route(context, (ok) => {
+            document.getElementById('btnExec').removeAttribute('disabled')
+            document.getElementById('btnRun').removeAttribute('disabled')
+            document.getElementById('btnInitial').removeAttribute('disabled')
+            let idxText = `访问${context.dropStep.length}/候选${context.stepQueue.length}/总共${context.dropStep.length + context.stepQueue.length}`
+
+            let validRate=Math.floor(context.routeStep.length*10000.0/context.dropStep.length)/100.0
+            let fullMapRate=Math.floor(context.dropStep.length*10000.0/context.mapData.filter(e=>e==0).length)/100.0
+            let regionRate=Math.floor(context.dropStep.length*10000.0/((Math.abs(context.endPos.x-context.beginPos.x)+1)*(Math.abs(context.endPos.y-context.beginPos.y)+1)))/100.0
+            let borderRate=Math.floor(context.stepQueue.length*10000.0/context.dropStep.length)/100.0
+            let sumText=`有效比${validRate}/全图比${fullMapRate}/区域比${regionRate}/边缘比${borderRate}`
+            if (ok) {
+                document.getElementById('resultText').style.color = 'deepskyblue'
+                document.getElementById('resultText').innerHTML = `路径已找到<br/>${idxText}<br/>${sumText}`
+            } else {
+                document.getElementById('resultText').style.color = 'orangered'
+                document.getElementById('resultText').innerHTML = `未找到路径<br/>${idxText}<br/>${sumText}`
+            }
+
+			let displayMode=document.getElementById('displayMode').checked
+			if(displayMode){
+				setTimeout(()=>{
+					main(context)
+				},5000)
+			}
+
+        })
+    }
+
+    function applyUiSetting(context) {
+        context.mapWidth = Math.floor(parseFloat(document.getElementById('mapWidth').value))
+        context.mapHeight = Math.floor(parseFloat(document.getElementById('mapHeight').value))
+
+		updateUiSetting(context)
+    }
+
+	function updateUiSetting(context){
+		context.wallRate = parseFloat(document.getElementById('wallRate').value)
+        context.sleepTime = Math.floor(parseFloat(document.getElementById('sleepTime').value))
+        context.sleepTriggerRate = parseFloat(document.getElementById('sleepTriggerRate').value)
+        context.endPosRate = parseFloat(document.getElementById('endPosRate').value)
+
+        context.drawLink = document.getElementById('drawLink').checked
+        context.smoothColor = document.getElementById('smoothColor').checked
+        context.drawWeight = document.getElementById('drawWeight').checked
+        context.drawWeightAll = document.getElementById('drawWeightAll').checked
+        context.moveDirection8 = document.getElementById('moveDirection8').checked
+        context.openBoost = document.getElementById('openBoost').checked
+	}
+
+    function sleep(millSeconds) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                resolve(true)
+            }, millSeconds)
+        })
+    }
+
+
+    async function route(context, callback) {
+        let beginStep = {
+            prev: null,
+            pos: context.beginPos,
+            weight: {
+                history: 0,
+                predict: 0,
+                sum: 0,
+            },
+            ttl: 0
+        }
+        beginStep.weight.predict = context.distance(beginStep.pos.x, beginStep.pos.y, context.endPos.x, context.endPos.y)
+        beginStep.weight.sum = beginStep.weight.history + beginStep.weight.predict
+        context.stepQueue.push(beginStep)
+
+        let nextOffsets = [
+            {x: -1, y: 0},
+            {x: 1, y: 0},
+            {x: 0, y: -1},
+            {x: 0, y: 1},
+        ]
+
+        if (context.moveDirection8) {
+            let moreOffsets = [
+                {x: -1, y: -1},
+                {x: -1, y: 1},
+                {x: 1, y: -1},
+                {x: 1, y: 1},
+            ]
+            nextOffsets.push(...moreOffsets)
+        }
+
+        let visitedMap = {}
+
+        let endRate=context.endPosRate
+        let hisRate=1.0-endRate
+
+        context._maxTtl=0
+
+        let ttlCount=0
+
+        let findStep = null
+        while (context.stepQueue.length > 0) {
+
+            context.stepQueue.sort((s1, s2) => {
+                let cmp = Math.floor(s1.weight.sum - s2.weight.sum)
+                if (!context.openBoost) {
+                    return cmp
+                }
+                if (cmp != 0) {
+                    return cmp
+                }
+                cmp = Math.floor(s1.weight.predict - s2.weight.predict)
+                if (cmp != 0) {
+                    return cmp
+                }
+                cmp = Math.floor(s1.weight.history - s2.weight.history)
+                return cmp
+            })
+
+            let cur = context.stepQueue[0]
+            let elems = context.stepQueue.splice(0, 1)
+            context.dropStep.push(...elems)
+            visitedMap[`${cur.pos.x}#${cur.pos.y}`] = true
+
+            if (cur.pos.x == context.endPos.x && cur.pos.y == context.endPos.y) {
+                findStep = cur
+                break
+            }
+
+            // 更新串联次数
+            let pnode=cur
+            while(pnode){
+                pnode.ttl++
+                if(pnode.ttl>context._maxTtl){
+                    context._maxTtl=pnode.ttl
+                }
+                pnode=pnode.prev
+            }
+
+            ttlCount++
+            if(ttlCount%10==0){
+                context._maxTtl=0
+                for (let i = 0; i < context.dropStep.length; i++) {
+                    let pnode=context.dropStep[i]
+                    pnode.ttl=Math.max(pnode.ttl-1,1)
+                    context._maxTtl=Math.max(context._maxTtl,pnode.ttl)
+                }
+            }
+
+            for (let i = 0; i < nextOffsets.length; i++) {
+                let offset = nextOffsets[i]
+                let nx = cur.pos.x + offset.x
+                let ny = cur.pos.y + offset.y
+                if (nx < 0 || ny < 0 || nx >= context.mapWidth || ny >= context.mapHeight) {
+                    continue
+                }
+                let nvalue = context.getMapAt(nx, ny)
+                if (nvalue == context.MAP_EMPTY() && !visitedMap[`${nx}#${ny}`]) {
+                    let nhistory = context.distance(cur.pos.x, cur.pos.y, nx, ny)
+                    let nStep = {
+                        prev: cur,
+                        pos: {
+                            x: nx,
+                            y: ny
+                        },
+                        weight: {
+                            history: 0,
+                            predict: 0,
+                            sum: 0,
+                        },
+                        ttl: 0
+                    }
+                    nStep.weight.history = cur.weight.history + nhistory
+                    nStep.weight.predict = context.distance(nStep.pos.x, nStep.pos.y, context.endPos.x, context.endPos.y)
+                    nStep.weight.sum = nStep.weight.history*hisRate + nStep.weight.predict*endRate
+                    context.stepQueue.push(nStep)
+                    visitedMap[`${nx}#${ny}`] = true
+
+                    if (context.sleepTime > 0 && context.randDouble() < context.sleepTriggerRate) {
+                        drawMap(context)
+
+                        await sleep(context.sleepTime)
+                    }
+                }
+            }
+
+
+        }
+
+        if (findStep) {
+            let cur = findStep
+            while (cur) {
+                context.routeStep.push(cur)
+                if (context.sleepTime > 0 && context.randDouble() < context.sleepTriggerRate) {
+                    drawMap(context)
+
+                    await sleep(context.sleepTime)
+                }
+                cur = cur.prev
+            }
+
+        }
+
+        drawMap(context)
+
+        let isFind = (!!findStep)
+        callback(!!findStep)
+    }
+
+    function getStyle(element, attr) {
+        if (element.currentStyle) {
+            return element.currentStyle[attr]
+        } else {
+            let style = window.getComputedStyle(element, null)
+            return style[attr]
+        }
+    }
+
+    function drawMap(context) {
+        let domWidth = parseInt(getStyle(context.canvas, 'width').split('px')[0])
+        let domHeight = parseInt(getStyle(context.canvas, 'height').split('px')[0])
+        context.canvas.width = domWidth
+        context.canvas.height = domHeight
+
+        let blockWidth = Math.floor(domWidth * 1.0 / context.mapWidth)
+        let blockHeight = Math.floor(domHeight * 1.0 / context.mapHeight)
+
+        let halfBlockWidth = Math.floor(blockWidth * 0.5)
+        let halfBlockHeight = Math.floor(blockHeight * 0.5)
+
+        // 绘制背景
+        context.graphics.fillStyle = 'white'
+        context.graphics.fillRect(0, 0, domWidth, domHeight)
+
+        let colorMap = {
+            0: 'white', // MAP_EMPTY
+            1: '#aaaaaa', // MAP_WALL
+        }
+
+        // 绘制基本图
+        for (let i = 0; i < context.mapHeight; i++) {
+            let offsetY = i * blockHeight
+            for (let j = 0; j < context.mapWidth; j++) {
+                let offsetX = j * blockWidth
+
+                // 绘制边框
+                context.graphics.strokeStyle = '#eeeeee'
+                context.graphics.lineWidth = 1
+                context.graphics.strokeRect(offsetX, offsetY, blockWidth, blockHeight)
+
+                let value = context.getMapAt(j, i)
+                let color = 'white'
+                if (colorMap[value]) {
+                    color = colorMap[value]
+                }
+
+                context.graphics.fillStyle = color
+                context.graphics.fillRect(offsetX, offsetY, blockWidth, blockHeight)
+
+            }
+        }
+
+        let routeColorMap = {
+            begin: 'orangered',
+            end: 'lightgreen',
+            drop: '#f6cbf1',
+            step: '#9cfafa',
+            route: '#19a3ff'
+        }
+
+        // 绘制已丢弃
+        if (routeColorMap.drop) {
+            for (let i = 0; i < context.dropStep.length; i++) {
+                let item = context.dropStep[i]
+
+                let offsetX = item.pos.x * blockWidth
+                let offsetY = item.pos.y * blockHeight
+
+                if(context.smoothColor){
+                    let rate=item.ttl*1.0/context._maxTtl
+                    let alpha=Math.floor(rate*220)+36
+                    let alphaHex=alpha.toString(16)
+                    if(alphaHex.length==1){
+                        alphaHex='0'+alphaHex
+                    }
+                    context.graphics.fillStyle = '#FF4500'+alphaHex
+                }else{
+                    context.graphics.fillStyle = routeColorMap.drop
+                }
+
+                context.graphics.fillRect(offsetX, offsetY, blockWidth, blockHeight)
+            }
+        }
+
+        // 绘制下一步
+        if (routeColorMap.step) {
+            for (let i = 0; i < context.stepQueue.length; i++) {
+                let item = context.stepQueue[i]
+
+                let offsetX = item.pos.x * blockWidth
+                let offsetY = item.pos.y * blockHeight
+
+                context.graphics.fillStyle = routeColorMap.step
+                context.graphics.fillRect(offsetX, offsetY, blockWidth, blockHeight)
+            }
+        }
+
+        // 绘制结果路径
+        if (routeColorMap.route) {
+            for (let i = 0; i < context.routeStep.length; i++) {
+                let item = context.routeStep[i]
+
+                let offsetX = item.pos.x * blockWidth
+                let offsetY = item.pos.y * blockHeight
+
+                context.graphics.fillStyle = routeColorMap.route
+                context.graphics.fillRect(offsetX, offsetY, blockWidth, blockHeight)
+            }
+        }
+
+        // 绘制起点
+        if (routeColorMap.begin) {
+            let offsetX = context.beginPos.x * blockWidth
+            let offsetY = context.beginPos.y * blockHeight
+
+            context.graphics.fillStyle = routeColorMap.begin
+            context.graphics.fillRect(offsetX, offsetY, blockWidth, blockHeight)
+        }
+
+        // 绘制终点
+        if (routeColorMap.end) {
+            let offsetX = context.endPos.x * blockWidth
+            let offsetY = context.endPos.y * blockHeight
+
+            context.graphics.fillStyle = routeColorMap.end
+            context.graphics.fillRect(offsetX, offsetY, blockWidth, blockHeight)
+        }
+
+
+        let steps = [...context.dropStep, ...context.stepQueue]
+
+        // 绘制连线
+        if (context.drawLink) {
+
+            for (let i = 0; i < steps.length; i++) {
+                let cur = steps[i]
+
+                if (cur.prev) {
+
+                    if(context.smoothColor){
+                        let rate=Math.min(cur.ttl,cur.prev.ttl)*1.0/context._maxTtl
+                        let alpha=Math.floor(rate*220)+36
+                        let alphaHex=alpha.toString(16)
+                        if(alphaHex.length==1){
+                            alphaHex='0'+alphaHex
+                        }
+
+                        context.graphics.lineWidth = Math.max(1,Math.floor(rate*Math.min(blockWidth,blockHeight)*0.7))
+                        context.graphics.strokeStyle = '#ff831e'+alphaHex
+                    }else{
+                        context.graphics.strokeStyle = '#ff831e'
+                        context.graphics.lineWidth = 1
+                    }
+
+                    context.graphics.moveTo(cur.pos.x * blockWidth + halfBlockWidth, cur.pos.y * blockHeight + halfBlockHeight)
+                    context.graphics.lineTo(cur.prev.pos.x * blockWidth + halfBlockWidth, cur.prev.pos.y * blockHeight + halfBlockHeight)
+                    context.graphics.stroke()
+
+                }
+            }
+        }
+
+        // 绘制权重
+        if (context.drawWeight) {
+            for (let i = 0; i < steps.length; i++) {
+                let cur = steps[i]
+
+                let text = `${Math.floor(cur.weight.sum)}`
+                let fontMetric = context.graphics.measureText(text)
+                let actualHeight = fontMetric.actualBoundingBoxAscent + fontMetric.actualBoundingBoxDescent;
+
+                context.graphics.font = `${halfBlockWidth-1}px system-ui`
+                context.graphics.fillStyle = 'black'
+                context.graphics.fillText(text, cur.pos.x * blockWidth + fontMetric.width / 2, cur.pos.y * blockHeight + halfBlockHeight + actualHeight)
+
+                if (context.drawWeightAll) {
+
+                    context.graphics.font = `${halfBlockWidth - 3}px system-ui`
+                    context.graphics.fillStyle = '#aaaaaa'
+                    context.graphics.fillText(`${Math.floor(cur.weight.history)}`, cur.pos.x * blockWidth, cur.pos.y * blockHeight + actualHeight)
+
+                    context.graphics.fillStyle = '#888888'
+                    context.graphics.fillText(`${Math.floor(cur.weight.predict)}`, cur.pos.x * blockWidth + halfBlockHeight, cur.pos.y * blockHeight + actualHeight)
+                }
+            }
+        }
+
+    }
+
+    function initContext() {
+        let canvas = document.getElementById('canvas')
+        let graphics = canvas.getContext('2d')
+
+        let context = {
+            canvas: canvas,
+            graphics: graphics,
+            mapWidth: 25,
+            mapHeight: 25,
+            wallRate: 0.3,
+            sleepTime: 30,
+            sleepTriggerRate: 1,
+            endPosRate: 0.5,
+            drawLink: true,
+            smoothColor: true,
+            drawWeight: true,
+            drawWeightAll: true,
+            moveDirection8: false,
+            openBoost: true,
+            mapData: [], // 0 empty, 1 wall
+            MAP_EMPTY: () => 0,
+            MAP_WALL: () => 1,
+            beginPos: {
+                x: 0,
+                y: 0
+            },
+            endPos: {
+                x: 0,
+                y: 0
+            },
+            stepQueue: [],
+            dropStep: [],
+            routeStep: [],
+            getMapAt(x, y) {
+                return this.mapData[this.mapWidth * y + x]
+            },
+            setMapAt(x, y, value) {
+                let old = this.getMapAt(x, y)
+                this.mapData[this.mapWidth * y + x] = value
+                return old
+            },
+            distance(x1, y1, x2, y2) {
+                let fast = false
+                if (fast) {
+                    return Math.abs(x2 - x1) + Math.abs(y2 - y1)
+                } else {
+                    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2))
+                }
+            },
+            randInt(bound = 0x0ffffff) {
+                return Math.floor(Math.random() * Math.abs(bound))
+            },
+            randDouble() {
+                return Math.random()
+            },
+            randBoolean() {
+                return Math.random() < 0.5
+            },
+            initMap() {
+                this.mapData = []
+                this.stepQueue = []
+                this.dropStep = []
+                this.routeStep = []
+                let wallRate = this.randDouble() * this.wallRate
+
+                let emptyValue = this.MAP_EMPTY()
+                let wallValue = this.MAP_WALL()
+                for (let i = 0; i < this.mapWidth * this.mapHeight; i++) {
+                    if (this.randDouble() < wallRate) {
+                        this.mapData.push(wallValue)
+                    } else {
+                        this.mapData.push(emptyValue)
+                    }
+                }
+
+                while (true) {
+                    this.beginPos.x = this.randInt(this.mapWidth)
+                    this.beginPos.y = this.randInt(this.mapHeight)
+                    let value = this.getMapAt(this.beginPos.x, this.beginPos.y)
+                    if (value == this.MAP_EMPTY()) {
+                        break
+                    }
+                }
+
+                while (true) {
+                    this.endPos.x = this.randInt(this.mapWidth)
+                    this.endPos.y = this.randInt(this.mapHeight)
+                    if(this.beginPos.x==this.endPos.x && this.beginPos.y==this.endPos.y){
+                        continue
+                    }
+                    let dis=Math.abs(this.endPos.x-this.beginPos.x)+Math.abs(this.endPos.y-this.beginPos.y)
+                    if(dis<Math.min(this.mapWidth,this.mapHeight)*0.3){
+                        continue
+                    }
+                    let value = this.getMapAt(this.endPos.x, this.endPos.y)
+                    if (value == this.MAP_EMPTY()) {
+                        break
+                    }
+                }
+            },
+            cleanMap() {
+                this.stepQueue = []
+                this.dropStep = []
+                this.routeStep = []
+            }
+        }
+
+        context.initMap()
+
+        return context
+    }
+
+    main()
+</script>
+<style>
+    .form-item {
+        width: 100%;
+        margin: 5px 3px;
+        padding: 3px;
+    }
+
+    .form-item-label {
+        width: 120px;
+        display: inline-block;
+    }
+
+    .form-item-content {
+        width: fit-content;
+        display: inline-block;
+    }
+
+    .form-button {
+        padding: 5px;
+        margin: 3px 5px;
+        background-color: deepskyblue;
+        color: white;
+        display: inline-block;
+        border: none;
+    }
+
+    .form-button:hover {
+        filter: hue-rotate(45deg);
+    }
+
+    .form-button:disabled {
+        filter: grayscale(0.6);
+        cursor: not-allowed;
+    }
+
+	.operation-tips{
+		height: 20px;
+		overflow: hidden;
+	}
+	.operation-tips:hover{
+		height: auto;
+		overflow: display;
+	}
+</style>
+</html>
