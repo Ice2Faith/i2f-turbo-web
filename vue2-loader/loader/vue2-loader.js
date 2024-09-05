@@ -237,6 +237,40 @@ Vue2Loader.domSetInnerHtml = function (dom, html) {
 }
 
 /**
+ *
+ * @param url {string}
+ * @param options {Object}
+ * @returns {Promise<Object>}
+ */
+Vue2Loader.fetchXhr=function(url,options){
+    if(!options){
+        options={}
+    }
+    if(!options.method){
+        options.method='get'
+    }
+    if(!options.responseType){
+        options.responseType='text'
+    }
+    return new Promise(function(resolve,reject){
+        let xhr = new XMLHttpRequest();
+        xhr.open(options.method,url);
+        xhr.responseType = options.responseType
+        xhr.onload = function(event){
+            if(this.status===200){
+                resolve(this.response)
+            }else{
+                reject({
+                    status: this.status,
+                    statusText: this.statusText
+                })
+            }
+        }
+        xhr.send()
+    })
+}
+
+/**
  * load an url content by iframe pre tag
  * @param url {string}
  * @return {Promise<string>}
@@ -362,6 +396,16 @@ Vue2Loader.fetchJsonp = function (url, options) {
  * @return {Promise<string>}
  */
 Vue2Loader.fetchUrl = function (url) {
+    if(url){
+        let idx=url.lastIndexOf('?')
+        if(idx>=0){
+            url=url+'&'
+        }else{
+            url=url+'?'
+        }
+        // 允许30s的缓存
+        url=url+'_tc='+Math.floor(new Date().getTime()/1000/30)
+    }
     // fetch resource chain
     return Promise.reject({
         ok: false,
@@ -376,6 +420,31 @@ Vue2Loader.fetchUrl = function (url) {
                 }).then(function (res) {
                     return res.text()
                 }).then(function (text) {
+                    if (!text || text == '') {
+                        return Promise.reject({
+                            ok: true,
+                            value: text
+                        })
+                    }
+                    return text
+                })
+            } else {
+                if(err.ok===true){
+                    return Promise.reject(err)
+                }else{
+                    return Promise.reject({
+                        ok: false,
+                        value: undefined
+                    })
+                }
+            }
+        })
+        .catch(function (err) {
+            // use xhr
+            let href = url
+            if ((typeof XMLHttpRequest) !== 'undefined') {
+                return Vue2Loader.fetchXhr(href)
+                    .then(function (text) {
                     if (!text || text == '') {
                         return Promise.reject({
                             ok: true,
