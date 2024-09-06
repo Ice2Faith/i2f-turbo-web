@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>spider</title>
+</head>
+<body>
+    <a name="top" style="width: 0;height: 0"></a>
+    <a href="#top" class="btn-foo-circle btn-back-top">
+        ^
+    </a>
+    <span id="catchCount" class="btn-foo-circle btn-catch-count">
+        0
+    </span>
+    <span id="clearContext" class="btn-foo-circle btn-clean-content">
+        X
+    </span>
+    <span id="downloadAll" class="btn-foo-circle btn-download-all">
+        V
+    </span>
+    <span id="copy2bord" class="btn-foo-circle btn-copy-clipboard">
+        C
+    </span>
+    <span class="btn-foo-circle btn-tiktok-web">
+        <a target="_blank" href="https://www.douyin.com/">抖</a>
+    </span>
+    <span class="btn-foo-circle btn-toutiao-web">
+        <a target="_blank" href="https://www.toutiao.com/">头</a>
+    </span>
+    <span class="btn-foo-circle btn-weibo-web">
+        <a target="_blank" href="https://www.weibo.com/">微</a>
+    </span>
+    <span class="btn-foo-circle btn-kuaishou-web">
+        <a target="_blank" href="https://www.kuaishou.com/">快</a>
+    </span>
+
+<textarea style="display:none;z-index: 1;" id="downUrls" rows="2"></textarea>
+<div class="card help-tips">
+    <div class="help-head">【操作说明】视频(抖音/头条/微博)下载助手（鼠标悬浮此处查看）</div>
+    <div class="help-body">
+        1.勾选需要的内容<br/>
+        2.【自动下载】将自动下载捕获的内容<br/>
+        3.【抖】打开抖音网页版<br/>
+        4.【C】复制下载链接到剪切板<br/>
+        5.【V】下载所有捕获的内容<br/>
+        6.【^】回到顶部<br/>
+        7.【X】清空捕获列表<br/>
+    </div>
+</div>
+<div class="card">
+    <div class="box-checkbox">
+        <div>启用</div>
+        <input id="ckbFilter" type="checkbox"/>
+    </div>
+    <div class="box-checkbox">
+        <div>自动下载</div>
+        <input id="ckbAutoDownload" type="checkbox"/>
+    </div>
+    <div class="box-checkbox">
+        <div>资源去重</div>
+        <input id="ckbFilterRepeat" type="checkbox"/>
+    </div>
+    <div class="box-checkbox">
+        <div>精简模式</div>
+        <input id="ckbPurityMode" type="checkbox"/>
+    </div>
+    <div class="box-checkbox">
+        <div>展开面板</div>
+        <input id="ckbExtendsControlPanel" type="checkbox"/>
+    </div>
+    <dic class="card box-checkbox">
+        导出：
+        <span class="btn-common" id="exportJson">JSON</span>
+        <span class="btn-common" id="exportUrl">URL</span>
+    </dic>
+    <span id="copytips" style="display:none;">复制成功！</span>
+</div>
+<div id="controlPanel" class="card">
+    <div class="card">
+        <div class="box-checkbox">
+            <div>请求匹配器</div>
+            <input id="ckbMatcher" type="checkbox"/>
+        </div>
+        <span class="card box-checkbox">
+            属性：
+            <span class="card" id="matcherPropertyCount"></span>
+            <span class="btn-common" id="matcherPropertyDownload">下载</span>
+        </span>
+        <span class="card box-checkbox">
+            视频：
+            <span class="card" id="matcherVideoCount"></span>
+            <span class="btn-common" id="matcherVideoDownload">下载</span>
+        </span>
+        <span class="card box-checkbox">
+            直播：
+            <span class="card" id="matcherLiveCount"></span>
+            <span class="btn-common" id="matcherLiveDownload">下载</span>
+        </span>
+        <span class="card box-checkbox">
+            音频：
+            <span class="card" id="matcherAudioCount"></span>
+            <span class="btn-common" id="matcherAudioDownload">下载</span>
+        </span>
+        <span class="card box-checkbox">
+            图片：
+            <span class="card" id="matcherImageCount"></span>
+            <span class="btn-common" id="matcherImageDownload">下载</span>
+        </span>
+        <span class="card box-checkbox">
+            文档：
+            <span class="card" id="matcherDocumentCount"></span>
+            <span class="btn-common" id="matcherDocumentDownload">下载</span>
+        </span>
+        <span class="card box-checkbox">
+            <span class="btn-common" id="matcherClean">清空</span>
+        </span>
+    </div>
+    <div class="card">
+        <!-- 抖音 -->
+        <div class="box-checkbox btn-tiktok-web">
+            <div>抖音</div>
+        </div>
+        <div class="box-checkbox">
+            <div>喜欢列表</div>
+            <input id="ckbTiktokFavorite" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>收藏列表</div>
+            <input id="ckbTiktokCollection" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>个人作品</div>
+            <input id="ckbTiktokPost" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>相关推荐</div>
+            <input id="ckbTiktokRelated" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>观看历史</div>
+            <input id="ckbTiktokHistory" type="checkbox"/>
+        </div>
+    </div>
+    <div class="card">
+        <!-- 头条 -->
+        <div class="box-checkbox btn-toutiao-web">
+            <div>头条</div>
+        </div>
+        <div class="box-checkbox">
+            <div>小视频</div>
+            <input id="ckbToutiaoUserShortVideo" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>微头条</div>
+            <input id="ckbToutiaoUserUgc" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>视频</div>
+            <input id="ckbToutiaoUserVideo" type="checkbox"/>
+        </div>
+    </div>
+    <div class="card">
+        <!-- 微博 -->
+        <div class="box-checkbox btn-weibo-web">
+            <div>微博</div>
+        </div>
+        <div class="box-checkbox">
+            <div>个人微博</div>
+            <input id="ckbWeiboUserHome" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>个人视频</div>
+            <input id="ckbWeiboUserVideo" type="checkbox"/>
+        </div>
+    </div>
+    <div class="card">
+            <!-- 快手 -->
+            <div class="box-checkbox btn-kuaishou-web">
+                <div>快手</div>
+            </div>
+            <div class="box-checkbox">
+                <div>个人主页</div>
+                <input id="ckbKuaishouUserHome" type="checkbox"/>
+            </div>
+        </div>
+    <div class="card">
+        <div class="box-checkbox">
+            <div>后缀嗅探</div>
+            <input id="ckbSpySuffixType" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>嗅探视频</div>
+            <input id="ckbSpyVideo" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>嗅探音频</div>
+            <input id="ckbSpyAudio" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>嗅探图片</div>
+            <input id="ckbSpyPicture" type="checkbox"/>
+        </div>
+        <div class="box-checkbox">
+            <div>嗅探文档</div>
+            <input id="ckbSpyDoc" type="checkbox"/>
+        </div>
+    </div>
+</div>
+
+<div id="content">
+    <!--
+    <div class="card box-container">
+        <div class="box-author" >
+            <div class="btn-download downloadClass" url="http://" name="test.mp4">
+                下载
+            </div>
+            <div class="box-head-title">
+                test.mp4
+            </div>
+
+        </div>
+        <div class="box-cover">
+            <video controls width="100%">
+                <source src="https://" type="video/mp4"/>
+            </video>
+        </div>
+    </div>
+    -->
+
+    <!--
+    <div class="card box-container">
+         <div class="box-author" >
+             <img class="box-avatar" src="https://"/>
+             <div class="box-nickname active" onclick="toViewAuthor('user_id')">
+                 用户昵称
+             </div>
+             <div class="btn-download downloadClass" url="http://" name="test.mp4">
+                 下载
+             </div>
+         </div>
+         <div class="box-title">
+             title
+         </div>
+         <div class="box-cover">
+             <a target="_blank" href="http://">
+                 <img src="https://"/>
+             </a>
+         </div>
+     </div>
+     -->
+
+</div>
+<script src="jquery-1.10.2.min.js"></script>
+<script src="panel.js"></script>
+</body>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    #copytips {
+        padding: 5px;
+        border-radius: 5px;
+        font-size: 22px;
+        color: orangered;
+    }
+
+    .help-tips {
+        display: block;
+    }
+
+    .help-head {
+        display: block;
+        color: orangered;
+    }
+
+    .help-body {
+        display: none;
+    }
+
+    .help-tips:hover .help-body {
+        display: block;
+    }
+
+    .btn-common{
+        padding: 2px;
+        margin: 2px;
+        background-color: skyblue;
+        border: solid 1px deepskyblue;
+        color: white;
+        font-weight: bolder;
+    }
+
+    .btn-common:hover{
+        background-color: orange;
+        border: solid 1px orangered;
+    }
+
+    .btn-foo-circle {
+        width: 38px;
+        height: 38px;
+        line-height: 38px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bolder;
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius: 18px;
+        border: solid 1px #eee;
+        box-shadow: 3px 3px 3px 3px #ddd;
+        position: fixed;
+        right: 3px;
+        bottom: 3px;
+        text-decoration: none;
+        z-index: 2000;
+    }
+
+    .btn-back-top {
+        right: 5px;
+        bottom: 5px;
+        color: deepskyblue;
+    }
+
+    .btn-clean-content {
+        left: 5px;
+        bottom: 5px;
+        color: coral;
+    }
+
+    .btn-download-all {
+        right: 5px;
+        bottom: calc(56px * 1);
+        color: lightgreen;
+    }
+
+    .btn-catch-count {
+        right: 5px;
+        bottom: calc(56px * 2);
+        font-size: 22px;
+        color: aquamarine;
+    }
+
+    .btn-copy-clipboard {
+        right: 5px;
+        bottom: calc(56px * 3);;
+        font-size: 22px;
+        color: orange;
+    }
+
+    .btn-tiktok-web {
+        right: 5px;
+        bottom: calc(56px * 4);
+        font-size: 22px;
+        color: purple !important;
+    }
+
+    .btn-tiktok-web a {
+        color: purple !important;
+    }
+
+    .btn-toutiao-web {
+        right: 5px;
+        bottom: calc(56px * 5);
+        font-size: 22px;
+        color: orangered !important;
+    }
+
+    .btn-toutiao-web a {
+        color: orangered !important;
+    }
+
+    .btn-weibo-web {
+        right: 5px;
+        bottom: calc(56px * 6);
+        font-size: 22px;
+        color: #dd3344 !important;
+    }
+
+    .btn-weibo-web a {
+        color: #dd3344 !important;
+    }
+
+    .btn-kuaishou-web {
+        right: 5px;
+        bottom: calc(56px * 7);
+        font-size: 22px;
+        color: #fca926 !important;
+    }
+
+    .btn-kuaishou-web a {
+        color: #fca926 !important;
+    }
+
+    .btn-foo-circle:hover {
+        color: orangered;
+        font-size: 26px;
+    }
+
+    .box-checkbox {
+        height: 22px;
+        line-height: 22px;
+        font-size: 14px;
+        display: inline-block;
+        padding: 1px;
+        margin: 1px 3px;
+    }
+
+    .box-checkbox div {
+        font-weight: bolder;
+        height: 22px;
+        line-height: 22px;
+        margin: 0 3px;
+        display: inline-block;
+        float: left;
+    }
+
+    .box-checkbox input {
+        height: 22px;
+        line-height: 22px;
+        width: 20px;
+        display: inline-block;
+        float: left;
+        margin: 0 3px;
+    }
+
+    .card {
+        border: solid 1px #eee;
+        border-radius: 3px;
+        padding: 3px;
+        margin: 3px;
+    }
+
+    @media screen and (min-width: 960px) {
+        .box-container {
+            width: 21%;
+            margin: 5px 1%;
+            float: left;
+            display: inline-block;
+        }
+    }
+
+    @media screen and (min-width: 640px) and (max-width: 960px) {
+        .box-container {
+            width: 28%;
+            margin: 5px 1%;
+            float: left;
+            display: inline-block;
+        }
+    }
+
+    @media screen and (min-width: 320px) and (max-width: 640px) {
+        .box-container {
+            width: 42%;
+            margin: 5px 1%;
+            float: left;
+            display: inline-block;
+        }
+    }
+
+    @media screen and (max-width: 320px) {
+        .box-container {
+            width: 80%;
+            margin: 5px 1%;
+            float: left;
+            display: inline-block;
+        }
+    }
+
+    .box-container:hover {
+        box-shadow: 3px 3px 3px 3px #ddd;
+    }
+
+    .box-author {
+        border-bottom: solid 1px #eee;
+        height: 48px;
+        line-height: 48px;
+    }
+
+    .box-head-title {
+        float: left;
+        display: inline-block;
+        width: 70%;
+        text-overflow: ellipsis;
+        overflow: hidden;
+    }
+
+    .box-head-title:hover {
+        overflow: visible;
+        text-overflow: unset;
+    }
+
+    .box-avatar {
+        width: 48px;
+        float: left;
+        height: 48px;
+        line-height: 48px;
+    }
+
+    .box-nickname {
+        height: 48px;
+        line-height: 48px;
+        display: inline-block;
+        float: left;
+        margin-left: 15px;
+        font-size: 28px;
+    }
+
+    .active {
+
+    }
+
+    .active:hover {
+        color: deepskyblue;
+        text-decoration: underline;
+        font-style: italic;
+    }
+
+    .box-title {
+        font-size: 16px;
+        height: 48px;
+        border-bottom: solid 1px #eee;
+    }
+
+    .box-cover {
+        width: 100%;
+    }
+
+    .box-cover img {
+        width: 100%;
+    }
+
+    .btn-download {
+        font-size: 20px;
+        margin: 3px;
+        padding: 5px;
+        border-radius: 8px;
+        border: solid 1px #eee;
+        display: inline-block;
+        background-color: lightskyblue;
+        color: white;
+        float: right;
+        height: 48px;
+        line-height: 48px;
+    }
+
+    .btn-download:hover {
+        background-color: coral;
+    }
+</style>
+</html>

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 2,
+  "version": "1.0.0",
+  "minimum_chrome_version": "10.0",
+  "name": "chrome-spider-plugin",
+  "description": "chrome resources spider plugin",
+  "devtools_page": "devtools.html",
+  "browser_action": {},
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "*://*/*",
+    "tabs"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*/*"
+      ],
+      "js": [
+        "jquery-1.10.2.min.js",
+        "hack.js"
+      ]
+    }
+  ],
+  "background": {}
+}
