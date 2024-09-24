@@ -1,0 +1,615 @@
+<html>
+<head>
+    <title>公交化-页面</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link href="../icon/favicon.ico" rel="shortcut icon"/>
+    <script src="../modules/vue/vue-2.js"></script>
+    <script src="../modules/vue/moment-2.24.0.js"></script>
+    <script src="../modules/ant-design/antd-1.4.10.min.js"></script>
+    <link href="../modules/ant-design/antd-1.4.10.min.css" rel="stylesheet" type="text/css"/>
+    <script src="../modules/axios/axios-1.1.3.min.js"></script>
+    <script src="./mock/demo-api-resp.js"></script>
+    <link href="../css/i2f-animation.css" rel="stylesheet" type="text/css"/>
+    <link href="../css/i2f-css.css" rel="stylesheet" type="text/css"/>
+    <link href="../css/i2f-theme.css" rel="stylesheet" type="text/css"/>
+</head>
+<body>
+<div id="app" style="padding: 5px">
+    <a-form layout="inline" @keyup.enter.native="queryList">
+        <a-form-item label="日期" class="i-ani-fade-in-right">
+            <!--            <a-input-->
+            <!--                    allow-clear-->
+            <!--                    v-model="form.day"-->
+            <!--                    placeholder="选择日期"-->
+            <!--            />-->
+            <a-date-picker allow-clear v-model="form.day"/>
+        </a-form-item>
+        <a-form-item label="车牌号" class="i-ani-fade-in-down">
+            <!--                        <a-select allow-clear v-model="form.carNumber" placeholder="请选择">-->
+            <!--                            <a-select-option-->
+            <!--                                    v-for="item in carNumberList"-->
+            <!--                                    :key="item.value"-->
+            <!--                                    :value="item.value">-->
+            <!--                                {{item.label}}-->
+            <!--                            </a-select-option>-->
+            <!--                        </a-select>-->
+            <a-input
+                    allow-clear
+                    v-model="form.carNumber"
+                    placeholder="车牌号"
+            />
+        </a-form-item>
+        <!--        <a-form-item label="时段">-->
+        <!--                    <a-select allow-clear v-model="segment" placeholder="请选择">-->
+        <!--                        <a-select-option-->
+        <!--                                v-for="item in segmentList"-->
+        <!--                                :key="item.value"-->
+        <!--                                :value="item.value">-->
+        <!--                            {{item.label}}-->
+        <!--                        </a-select-option>-->
+        <!--                    </a-select>-->
+        <!--        </a-form-item>-->
+        <a-form-item label="关键字" class="i-ani-fade-in-up">
+            <a-input
+                    allow-clear
+                    v-model="form.searchStr"
+                    placeholder="查路线名、车牌号、司机名、跟车人名"
+            />
+        </a-form-item>
+        <a-form-item label="更多" class="i-ani-fade-in-left">
+            <a-select
+                    allow-clear
+                    v-model="form.dynamicOptions"
+                    mode="multiple"
+                    placeholder="请选择"
+                    style="width: 160px">
+                <a-select-option
+                        v-for="item in dynamicOptionsList"
+                        :key="item.itemValue"
+                        :value="item.itemValue">
+                    {{item.itemText}}
+                </a-select-option>
+            </a-select>
+        </a-form-item>
+        <a-form-item class="i-ani-fade-in-bounce">
+            <a-spin :spinning="loading" size="small">
+                <a-button type="primary" @click="queryList">查询</a-button>
+            </a-spin>
+        </a-form-item>
+
+    </a-form>
+    <a-checkbox v-model="carousel" class="carousel-checkbox i-ani-shake">轮播</a-checkbox>
+    <component :is="carousel?$antdUi.Carousel:$virtualUi.VDiv" autoplay :style="carousel?'height: min-content':''">
+        <div v-for="(card,index) in cards" class="i-ani-fade-in-left">
+            <div :class="'bus-card '+ cardTheme(card)">
+                <div class="bus-title i-ani-fade-in-up">
+                    <div class="bus-title-content">
+                        <div class="bus-car-number i-ani-breath">
+                            {{card.head.carNumber}}
+                        </div>
+                        <div>
+                            {{card.head.segmentTimeDesc}}
+                        </div>
+                        <div>
+                            {{card.head.routeName}}
+                        </div>
+                        <div>
+                            {{card.head.driverName}}
+                        </div>
+                        <div>
+                            {{card.head.parentIdDesc}}
+                        </div>
+                        <div>
+                            {{card.head.businessTypeDesc}}
+                        </div>
+                    </div>
+                </div>
+                <div class="bus-sites">
+                    <a-steps ref="steps" :card="card" label-placement="vertical" class="steps-bus" :current="6"
+                             size="small">
+                        <template v-for="(item,index) in card.body">
+                            <a-step :status="siteStatus(item,index,card.body)">
+                                <!--                    <a-icon slot="icon" type="check-circle"></a-icon>-->
+                                <div slot="title">
+                                    <div class="title-time title-end">
+                                        {{item.realEndTimeDesc ? item.realEndTimeDesc :
+                                        (item.planEndTimeDesc?item.planEndTimeDesc:'--:--')}}&nbsp;
+                                    </div>
+                                    <div class="recovery-title">
+                                        <a-icon type="car" class="car-icon"
+                                                :style="siteCarStyle(item,index,card.body)"></a-icon>
+                                        <a-popover
+                                                slot="description"
+                                                title="图标事件"
+                                                trigger="hover">
+                                            <a-icon type="check-circle" class="recovery-icon"></a-icon>
+                                            <template slot="content">
+                                                图标事件
+                                            </template>
+                                        </a-popover>
+                                        {{item.routeDetailDesc}}
+                                    </div>
+                                    <div class="title-time title-begin">
+                                        {{item.realBeginTimeDesc ? item.realBeginTimeDesc :
+                                        (item.planBeginTimeDesc?item.planBeginTimeDesc:'--:--')}}&nbsp;
+                                    </div>
+                                </div>
+                                <template v-if="item.alarmMsgs">
+                                    <a-popover
+                                            v-for="(alarm,aidx) in item.alarmMsgs"
+                                            slot="description"
+                                            title="告警信息"
+                                            trigger="hover">
+                                        {{alarm.t == 1 ? "静止超时" : (alarm.t == 2 ? "行驶超时" : alarm.t == 3 ?
+                                        "离线超时" : "未到站")}}
+                                        <div slot="content">
+                                            告警ID：{{alarm.id}}
+                                            <template if="alarm.s==1">
+                                                <a-divider></a-divider>
+                                                <div style="text-align: center">
+                                                    <a-button type="primary" size="small">处置</a-button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <br/>
+                                    </a-popover>
+                                </template>
+                            </a-step>
+                        </template>
+
+                    </a-steps>
+                </div>
+            </div>
+        </div>
+    </component>
+    <br style="color: coral;" class="i-ani-fade-in-left-up">
+    <a class="i-a i-ani-spin" href="./demo.zip" target="_self" download="demo.zip">[下载源码]</a></br>
+    1.对文字部分具有完全控制权和事件响应能力<br/>
+    2.对图标具有事件响应能力，可以设置图标<br/>
+    3.对连线不具备控制权和事件响应能力<br/>
+    </a-row>
+</div>
+</body>
+<style>
+
+
+    .carousel-checkbox {
+        position: fixed;
+        top: 5px;
+        right: 5px;
+        color: white;
+        background: lightblue;
+        border-radius: 999px;
+        padding: 8px;
+        text-align: center;
+    }
+
+    .ant-input {
+        min-height: auto !important;
+    }
+
+    .bus-card {
+        clear: both;
+        width: 100%;
+        padding: 0px;
+        margin: 5px;
+        text-align: center;
+        overflow: hidden;
+        height: 33vh;
+        margin-bottom: 20px;
+        border-radius: 10px;
+    }
+
+    .bus-card .bus-title, .bus-sites {
+        float: left;
+        display: inline-block;
+        height: 100%;
+    }
+
+    .bus-title {
+        width: 15%;
+        text-align: center;
+    }
+
+    .bus-title div {
+        margin: 5px auto;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .bus-title .bus-title-content {
+        position: relative;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .bus-title .bus-car-number {
+        font-size: 16px;
+        font-weight: bold;
+        width: 60%;
+        border-radius: 18px;
+        padding: 5px;
+    }
+
+    .bus-sites {
+        width: 85%;
+
+    }
+
+
+    .theme-blue {
+        border: solid 1px deepskyblue;
+        box-shadow: 3px 3px 8px 1px deepskyblue;
+    }
+
+    .theme-blue .bus-title {
+        background-image: linear-gradient(120deg, cyan, deepskyblue);
+        color: white;
+    }
+
+    .theme-blue .bus-car-number {
+        color: deepskyblue;
+        background-color: white;
+
+    }
+
+    .theme-red {
+        border: solid 1px orangered;
+        box-shadow: 3px 3px 8px 1px orangered;
+    }
+
+    .theme-red .bus-title {
+        background-image: linear-gradient(120deg, yellow, orangered);
+        color: white;
+    }
+
+    .theme-red .bus-car-number {
+        color: orangered;
+        background-color: white;
+
+    }
+
+    .theme-green {
+        border: solid 1px limegreen;
+        box-shadow: 3px 3px 8px 1px limegreen;
+    }
+
+    .theme-green .bus-title {
+        background-image: linear-gradient(120deg, springgreen, limegreen);
+        color: white;
+    }
+
+    .theme-green .bus-car-number {
+        color: limegreen;
+        background-color: white;
+
+    }
+
+    .steps-bus {
+        padding-top: 36px;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .steps-bus:hover {
+        overflow: auto;
+    }
+
+    .steps-bus .ant-steps-item {
+        flex: 0 0 auto;
+        width: 300px;
+    }
+
+    .steps-bus .ant-steps-item:last-child {
+        width: auto;
+    }
+
+    .steps-bus .ant-steps-item-title {
+        writing-mode: tb-rl;
+        margin: 8px auto;
+    }
+
+    .steps-bus .ant-steps-item-icon {
+        margin: 0 auto;
+        margin-left: calc(0px - 100% + 105px);
+    }
+
+    .steps-bus .ant-steps-item-icon .ant-steps-icon {
+        position: relative;
+        top: 20%;
+    }
+
+    .steps-bus .ant-steps-item-title {
+        font-size: 18px;
+        left: -4px;
+    }
+
+    .steps-bus .ant-steps-item-description {
+        font-size: 12px;
+    }
+
+    .steps-bus .ant-steps-item-title .title-time {
+        font-size: 12px;
+        font-weight: normal;
+        text-align: start;
+        writing-mode: initial;
+        position: relative;
+        top: -50px;
+    }
+
+    .steps-bus .title-end {
+        /*right: 10px;*/
+    }
+
+    .steps-bus .title-begin {
+        left: 10px;
+    }
+
+    .ant-card {
+        margin: 5px auto;
+    }
+
+
+    .recovery-title {
+        margin-top: -60px;
+    }
+
+    .car-icon {
+        position: relative;
+        z-index: 200;
+        top: -10px;
+        /*opacity: 0;*/
+        width: 24px;
+        height: 24px;
+        /*background: red;*/
+        left: 4px;
+    }
+
+    .recovery-icon {
+        position: relative;
+        z-index: 200;
+        top: -8px;
+        opacity: 0;
+        width: 24px;
+        height: 24px;
+        /*background: red;*/
+        left: 7px;
+    }
+
+    /*定义滚动条高宽及背景 高宽分别对应横竖滚动条的尺寸*/
+    ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+        background-color: #f5f5f5;
+    }
+
+
+    /*定义滚动条轨道 内阴影+圆角*/
+    ::-webkit-scrollbar-track {
+        box-shadow: inset 0 0 4px rgb(0 0 0 / 10%);
+        -webkit-box-shadow: inset 0 0 4px rgb(0 0 0 / 10%);
+        border-radius: 10px;
+        background-color: #f5f5f5;
+    }
+
+    /*定义滑块 内阴影+圆角*/
+    ::-webkit-scrollbar-thumb {
+        border-radius: 10px;
+        box-shadow: inset 0 0 4px rgb(0 0 0 / 10%);
+        -webkit-box-shadow: inset 0 0 4px rgb(0 0 0 / 10%);
+        background-color: #c7c7c7;
+    }
+</style>
+<script>
+    let request = axios.create({
+        // baseURL: 'http://localhost:8080',
+        timeout: 6000,
+        headers: {
+            "X-Access-Token": ''
+        }
+    })
+    let VDiv = Vue.extend({
+        name: 'VDiv',
+        template: '<div><slot></slot></div>',
+        data() {
+            return {}
+        }
+    });
+    Vue.prototype.$axios = request;
+    Vue.prototype.$antdUi = {...antd};
+    Vue.prototype.$virtualUi = {VDiv};
+    new Vue({
+        components: {
+            ...this.$antdUi, ...this.$virtualUi
+        },
+        data() {
+            return {
+                cards: [],
+                form: {
+                    day: moment(new Date().getTime()),
+                    carNumber: '',
+                    searchStr: '',
+                    dynamicOptions: ['0'],
+                },
+                loading: false,
+                carousel: false,
+                dynamicOptionsList: [],
+                carNumberList: [
+                    {
+                        value: '1001',
+                        label: '闵A12345'
+                    },
+                    {
+                        value: '1002',
+                        label: '闵A12333'
+                    }
+                ],
+                segment: '1001',
+                segmentList: [
+                    {
+                        value: '1001',
+                        label: '07:30-09:30'
+                    },
+                    {
+                        value: '1002',
+                        label: '13:00-15:30'
+                    }
+                ],
+                dateOptions: {
+                    disabledDate: function (date) {
+                        return date.getTime() > new Date().getTime()
+                    }
+                }
+            }
+        },
+        mounted() {
+            this.initComponents();
+        },
+        computed: {},
+        methods: {
+            moment: window.moment,
+            initComponents() {
+                this.queryDynamicOptions();
+                this.queryList();
+            },
+            centerCurrentSite() {
+                let steps = this.$refs.steps;
+                for (let i = 0; i < steps.length; i++) {
+                    let item = steps[i].$el;
+                    let body = steps[i].$attrs.card.body;
+                    let pcnt = 0;
+                    for (let i = 0; i < body.length; i++) {
+                        if (body[i].passFlag == 1) {
+                            pcnt++;
+                        }
+                    }
+                    let rate = pcnt * 1.0 / body.length;
+                    let x = Math.floor(item.scrollWidth * rate) - item.clientWidth / 2;
+                    item.scrollTo({
+                        left: x,
+                        behavior: 'smooth'
+                    });
+                }
+
+            },
+            siteCarStyle(item, index, body) {
+                if (item.passFlag == 0) {
+                    if (index == 0 || body[index - 1].passFlag == 1) {
+                        let ret = 'opacity:1;';
+                        if (item.inAreaFlag == 0) {
+                            ret += 'left: calc(7px + 120px);';
+                        }
+                        return ret;
+                    }
+                }
+                return 'opacity:0;left: 7px;';
+            },
+            siteStatus(item, index, body) {
+                if (item.passFlag == 0) {
+                    if (index == 0 || body[index - 1].passFlag == 1) {
+                        return 'process'
+                    }
+                    return 'wait'
+                }
+                if (item.arriveFlag == '1') {
+                    return 'finish'
+                }
+                return 'error'
+            },
+            cardTheme(card) {
+                let ret = 'theme-green';
+                let body = card.body;
+                let pcnt = 0;
+                let acnt = 0;
+                for (let i = 0; i < body.length; i++) {
+                    if (body[i].passFlag == 1) {
+                        pcnt++;
+                        if (body[i].alarmMsgs) {
+                            acnt++;
+                        }
+                    }
+
+                }
+                if (pcnt < body.length) {
+                    ret = 'theme-blue';
+                }
+                if (acnt / body.length > 0.66) {
+                    ret = 'theme-red';
+                }
+                return ret;
+            },
+            queryDynamicOptions() {
+                this.mockQueryDynamicOptions();
+                this.$axios({
+                    url: '/biz/bizCarRealArrive/queryDynamicOptions',
+                    method: 'get',
+                    params: {}
+                }).then(({data: {result: result}}) => {
+                    this.dynamicOptionsList = result;
+                });
+            },
+            mockQueryDynamicOptions() {
+                this.dynamicOptionsList = mockDynamicOptionsResult;
+            },
+            queryList() {
+                this.loading = true;
+                let dynamicOptionStr = '';
+                for (let i = 0; i < this.form.dynamicOptions.length; i++) {
+                    if (i != 0) {
+                        dynamicOptionStr += ',';
+                    }
+                    dynamicOptionStr += this.form.dynamicOptions[i];
+                }
+                let params = {
+                    sumDay: this.form.day ? this.form.day.format('YYYY-MM-DD') : '',
+                    carNumber: this.form.carNumber,
+                    searchStr: this.form.searchStr,
+                    dynamicOptions: dynamicOptionStr
+                };
+                this.mockQueryCarList();
+                this.$axios({
+                    url: '/biz/bizCarRealArrive/cardList',
+                    method: 'get',
+                    params: params
+                }).then(({data: {result: result}}) => {
+                    this.cards = result;
+                    for (let i = 0; i < this.cards.length; i++) {
+                        let item = this.cards[i];
+                        if (item.head.alarmMsgs) {
+                            item.head.alarmMsgs = JSON.parse(item.head.alarmMsgs)
+                        }
+                        for (let bi = 0; bi < item.body.length; bi++) {
+                            let bd = item.body[bi];
+                            if (bd.alarmMsgs) {
+                                bd.alarmMsgs = JSON.parse(bd.alarmMsgs)
+                            }
+                        }
+                    }
+                }).finally(() => {
+                    this.loading = false;
+                    this.$nextTick(() => {
+                        this.centerCurrentSite();
+                    })
+                })
+            },
+            mockQueryCarList() {
+                this.cards = mockCarList;
+                for (let i = 0; i < this.cards.length; i++) {
+                    let item = this.cards[i];
+                    if (item.head.alarmMsgs) {
+                        item.head.alarmMsgs = JSON.parse(item.head.alarmMsgs)
+                    }
+                    for (let bi = 0; bi < item.body.length; bi++) {
+                        let bd = item.body[bi];
+                        if (bd.alarmMsgs) {
+                            bd.alarmMsgs = JSON.parse(bd.alarmMsgs)
+                        }
+                    }
+                }
+            }
+        }
+    }).$mount('#app')
+</script>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" class="i-css">
+<head>
+    <meta charset="UTF-8">
+    <title>i2f css</title>
+    <link rel="stylesheet" href="../css/i2f-css.css"></link>
+</head>
+<body class="i-css i-scrollbar">
+<label>
+    <input type="checkbox" id="switchTheme" onclick="onSwitchTheme(event)"/>
+    切换主题
+</label>
+<ul class="i-float-clearfix">
+    <li class="i-float-left i-primary">primary</li>
+    <li class="i-float-left i-warning">warning</li>
+    <li class="i-float-right i-danger">danger</li>
+    <li class="i-float-right i-info">info</li>
+    <li class="i-float-right i-success">success</li>
+</ul>
+<div style="width: 100px;height: 100px;overflow: scroll;">
+    <div style="min-width: 1400px;min-height: 1080px;">
+        111
+    </div>
+</div>
+<div>
+    <button class="i-primary">primary</button>
+    <button class="i-warning">warning</button>
+    <button class="i-danger">danger</button>
+    <button class="i-info">info</button>
+    <button class="i-success">success</button>
+</div>
+<div>
+    <button class="i-primary" disabled>primary</button>
+    <button class="i-warning" disabled>warning</button>
+    <button class="i-danger" disabled>danger</button>
+    <button class="i-info" disabled>info</button>
+    <button class="i-success" disabled>success</button>
+</div>
+<div>
+    <input type="button" class="i-primary" value="primary"/>
+    <input type="button" class="i-warning" value="warning"/>
+    <input type="button" class="i-danger" value="danger"/>
+    <input type="button" class="i-info" value="info"/>
+    <input type="button" class="i-success" value="success"/>
+</div>
+<div>
+    <input type="button" class="i-primary" value="primary" disabled/>
+    <input type="button" class="i-warning" value="warning" disabled/>
+    <input type="button" class="i-danger" value="danger" disabled/>
+    <input type="button" class="i-info" value="info" disabled/>
+    <input type="button" class="i-success" value="success" disabled/>
+</div>
+<form action="#" class="i-card i-blur-glass" style="width: 480px;margin: 5px auto;">
+    <div class="i-form-item">
+        <label class="i-form-label">用户名</label>
+        <div class="i-form-content">
+            <input type="text" placeholder="text"/>
+        </div>
+    </div>
+    <div class="i-form-item">
+        <label class="i-form-label">密码</label>
+        <div class="i-form-content">
+            <input type="password" placeholder="password"/>
+        </div>
+    </div>
+    <div class="i-form-item">
+        <label class="i-form-label">年龄</label>
+        <div class="i-form-content">
+            <input type="number" placeholder="number"/>
+        </div>
+    </div>
+    <div class="i-form-item">
+        <label class="i-form-label">头像</label>
+        <div class="i-form-content">
+            <input type="file" placeholder="file"/>
+        </div>
+    </div>
+    <div class="i-form-item">
+        <label class="i-form-label">简介</label>
+        <div class="i-form-content">
+            <textarea rows="5"></textarea>
+        </div>
+    </div>
+
+    <div class="i-form-item">
+        <label class="i-form-label">性别</label>
+        <div class="i-form-content">
+            <label>
+                <input type="radio" placeholder="radio" name="sex" checked/>男
+            </label>
+            <label>
+                <input type="radio" placeholder="radio" name="sex"/>女
+            </label>
+        </div>
+    </div>
+
+    <div class="i-form-item">
+        <label>
+            <input type="checkbox" placeholder="checkbox"/>
+            同意<a href="#">政策</a>
+        </label>
+    </div>
+    <div class="i-form-item" style="padding-left: var(--form-label-width)">
+        <input type="submit" value="submit" class="i-primary"/>
+        <input type="reset" value="reset" class="i-blank"/>
+    </div>
+
+</form>
+<div>
+
+</div>
+
+</body>
+<script>
+    function onSwitchTheme(event) {
+        if (event.target.checked) {
+            document.body.setAttribute('theme', 'dark')
+        } else {
+            document.body.removeAttribute('theme')
+        }
+    }
+</script>
+</html>
