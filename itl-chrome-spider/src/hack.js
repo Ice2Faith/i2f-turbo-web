@@ -227,6 +227,9 @@ function forceHackInit() {
 		'<div class="hackArea">' +
 		'' +
 		'<span class="hackBtn">可编辑<input id="hackEditable" type="checkbox"/></span>' +
+		'<span class="hackBtn" id="hackGiteeDoc">Gitee文档</span>'+
+		'<span class="hackBtn" id="hackGithubDoc">Github文档</span>'+
+		'<span class="hackBtn" id="hackGitlabDoc">Gitlab文档</span>'+
 		'<span class="hackBtn" id="hackHrefs">打印链接</span>' +
 		'<span class="hackBtn" id="hackImgs">打印图片</span>' +
 		'<span class="hackBtn" id="hackVideos">打印视频</span>' +
@@ -286,6 +289,19 @@ function forceHackInit() {
 		}
 	});
 
+
+	$("#hackGiteeDoc").click(function () {
+		showOnlyGiteeFileContent();
+	});
+
+	$("#hackGithubDoc").click(function () {
+		showOnlyGithubFileContent();
+	});
+
+	$("#hackGitlabDoc").click(function () {
+		showOnlyGitlabFileContent();
+	});
+
 	$("#hackHrefs").click(function () {
 		printfAllHrefs();
 	});
@@ -342,6 +358,98 @@ function forceHackInit() {
 forceHackInit();
 setInterval(forceHackInit, 1000);
 
+// gitee只显示文件内容，方便打印
+function showOnlyGiteeFileContent(){
+	let dom=document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder')
+	if(!dom){
+		return
+	}
+	document.querySelector('body.git-project').style.padding='0px';
+	document.querySelector('header.common-header').style.display='none';
+	document.querySelector('footer#git-footer-main').style.display='none';
+	document.querySelector('div.side-toolbar').style.display='none';
+	document.querySelector('div.site-content div.git-project-header').style.display='none';
+	document.querySelector('div.site-content div.container div.register-guide').style.display='none';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div#git-project-container').style.padding='0px';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.git-project-desc-wrapper').style.display='none';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.git-project-bread').style.display='none';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder').style.border='none';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder').style.padding='5px';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder div.file_title').style.display='none';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder div.file_catalog').style.display='none';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder div.file_line').style.display='none';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder div.file_content').style.padding='0px';
+	document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder div.file_content').style.borderLeft='none';
+	let imgs=document.querySelectorAll('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder div.file_content img')
+	for(let i=0;i<imgs.length;i++){
+		imgs[i].style.width='100vw';
+	}
+}
+
+// github只显示文件内容，方便打印
+function showOnlyGithubFileContent(){
+	let dom=document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.js-snippet-clipboard-copy-unpositioned')
+	if(!dom){
+		return
+	}
+	document.querySelector('div[data-turbo-body] div.js-header-wrapper').style.display='none';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"]').style.width='100vw';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"]').style.position='absolute';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"]').style.left='0px';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div#StickyHeader').style.display='none';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.react-code-view-bottom-padding').style.display='none';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div[data-testid="latest-commit"]').parentElement.style.display='none';
+	let banners=document.querySelectorAll('react-app div[data-selector="repos-split-pane-content"] div.react-code-size-details-banner');
+	for(let i=0;i<banners.length;i++){
+		banners[i].remove();
+	}
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.react-blob-view-header-sticky').style.display='none';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.js-snippet-clipboard-copy-unpositioned').parentElement.style.margin='0px';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.js-snippet-clipboard-copy-unpositioned').style.padding='5px';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.js-snippet-clipboard-copy-unpositioned').parentElement.parentElement.style.borderStyle='none';
+
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.js-snippet-clipboard-copy-unpositioned article').style.marginLeft='unset';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.js-snippet-clipboard-copy-unpositioned article').style.marginRight='unset';
+	document.querySelector('react-app div[data-selector="repos-split-pane-content"] div.js-snippet-clipboard-copy-unpositioned article').style.maxWidth='100vw';
+
+	document.querySelector('react-app div#repos-file-tree').style.display='none';
+
+	let imgs=document.querySelectorAll('react-app div[data-selector="repos-split-pane-content"] div.js-snippet-clipboard-copy-unpositioned article img')
+	for(let i=0;i<imgs.length;i++){
+		imgs[i].style.width='100vw';
+	}
+}
+
+// gitlab只显示文件内容，方便打印
+function showOnlyGitlabFileContent(){
+	let dom=document.querySelector('div.tree-holder div.file-holder')
+	if(!dom){
+		return
+	}
+	document.querySelector('nav.super-sidebar').style.display='none';
+	document.querySelector('div.page-with-super-sidebar').style.paddingLeft='0px';
+
+	document.querySelector('div.content-wrapper').style.paddingTop='0px';
+	document.querySelector('div.content-wrapper').style.paddingBottom='0px';
+
+	document.querySelector('div.content-wrapper main#content-body').parentElement.style.margin='0px';
+	document.querySelector('div.content-wrapper main#content-body').parentElement.style.padding='5px';
+	document.querySelector('div.content-wrapper main#content-body').parentElement.style.maxWidth='100vw';
+	document.querySelector('div.content-wrapper div.top-bar-container').remove()
+	document.querySelector('div.tree-holder').style.paddingTop='0px';
+	document.querySelector('div.tree-holder div.blob-content-holder').style.marginTop='0px';
+
+	document.querySelector('div.tree-holder div.info-well').remove();
+	document.querySelector('div.tree-holder div.nav-block').remove();
+	document.querySelector('div.tree-holder div.file-holder').style.border='none';
+	document.querySelector('div.tree-holder div.file-holder div.js-file-title').remove();
+
+	blob-viewer
+	let imgs=document.querySelectorAll('div.tree-holder div.file-holder div.blob-viewer img')
+	for(let i=0;i<imgs.length;i++){
+		imgs[i].style.width='100vw';
+	}
+}
 
 // 获取所有超链接
 function printfAllHrefs() {
