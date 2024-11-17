@@ -37,6 +37,7 @@
                   placeholder="echarts的原生options"></el-input>
     </template>
     <template v-else>
+        <el-checkbox v-model="enableShowPie" @change="renderChart">玫瑰图</el-checkbox>
         <el-input v-model="echartConfig"
                   @keyup.enter.native="renderChart"
                   type="textarea"
@@ -88,6 +89,7 @@
             sheetUseDotSeparator: false,
             sheetWithHead: true,
             sheetWithName: true,
+            enableShowPie: false,
             echartOption: '',
             dataList: '',
             sheetData: 'NO\tALL_CNT\tSTATUS_CNT\tVALID_CNT\n' +
@@ -237,7 +239,7 @@
                 localStorage.removeItem('data-viewer')
                 window.location.reload()
             },
-            parseAsEchartsOptions(dataList, config) {
+            parseAsEchartsLineOptions(dataList, config) {
 
                 const echartsConfig = {
                     title: config.title,
@@ -324,7 +326,7 @@
                         left: 'center'
                     },
                     legend: {
-                        data: [...Object.keys(echartsConfig.dataMap)],
+                        data: echartsConfig.labels,
                         right: '2%',
                         bottom: '2%'
                     },
@@ -359,6 +361,115 @@
                             rotate: -90, // 强制显示所有列名
                         },
                         data: echartsConfig.labels
+                    },
+                    series: series
+                }
+                return options
+            },
+            parseAsEchartsPieOptions(dataList, config) {
+
+                const echartsConfig = {
+                    title: config.title,
+                    labels: [],
+                    dataMap: {}
+                }
+
+                function getValue(obj, path) {
+                    if (!path || path == '') {
+                        return obj
+                    }
+                    let ret = obj
+                    if (!ret) {
+                        return ret
+                    }
+                    let arr = path.split('.');
+                    for (let i = 0; i < arr.length; i++) {
+                        let key = arr[i]
+                        if (!ret) {
+                            return ret
+                        }
+                        if (key.endsWith(']')) {
+                            let idx = key.indexOf('[')
+                            let nk = key.substring(idx + 1, key.length - 1)
+                            key = key.substring(0, idx)
+                            ret = ret[key]
+                            if (!ret) {
+                                return ret
+                            }
+                            ret = ret[nk]
+                        } else {
+                            ret = ret[key]
+                        }
+                    }
+                    return ret
+                }
+
+                dataList.forEach(item => {
+                    if (typeof config.name == 'string') {
+                        echartsConfig.labels.push(getValue(item, config.name))
+                    } else {
+                        echartsConfig.labels.push(config.name(item))
+                    }
+
+                    for (let i = 0; i < config.series.length; i++) {
+                        let key = config.series[i].name
+                        let prop = config.series[i].prop
+                        if (!echartsConfig.dataMap[key]) {
+                            echartsConfig.dataMap[key] = []
+                        }
+                        if (typeof prop == 'string') {
+                            echartsConfig.dataMap[key].push(getValue(item, prop))
+                        } else {
+                            echartsConfig.dataMap[key].push(prop(item))
+                        }
+                    }
+                })
+
+
+                let series = []
+
+                for (let i = 0; i < config.series.length; i++) {
+                    let key = config.series[i].name
+                    let list=[]
+                    for (let j = 0; j <echartsConfig.dataMap[key].length; j++) {
+                        list.push({
+                            value: echartsConfig.dataMap[key][j],
+                            name:echartsConfig.labels[j]
+                        })
+                    }
+                    series.push({
+                        name: key,
+                        type: 'pie',
+                        center: [Math.round((i+0.5)/config.series.length*100)+'%', '50%'],
+                        radius: [30, 150],
+                        roseType: 'area',
+                        itemStyle: {
+                            borderRadius: 8
+                        },
+                        data: list
+                    })
+                }
+
+                const options = {
+                    title: {
+                        text: echartsConfig.title,
+                        left: 'center'
+                    },
+                    legend: {
+                        top: 'bottom'
+                    },
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b} : {c} ({d}%)'
+                    },
+                    toolbox: {
+                        show: true,
+                        feature: {
+                            mark: { show: true },
+                            dataView: { show: true, readOnly: false },
+                            restore: { show: true },
+                            saveAsImage: { show: true }
+                        }
                     },
                     series: series
                 }
@@ -443,7 +554,12 @@
                     } else {
                         list = JSON.parse(this.dataList)
                     }
-                    let option = this.parseAsEchartsOptions(list, JSON.parse(this.echartConfig))
+                    let option = {}
+                    if(this.enableShowPie){
+                        option=this.parseAsEchartsPieOptions(list, JSON.parse(this.echartConfig))
+                    }else{
+                        option=this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                    }
                     this.setOption(domId, option, null, true)
 
                     let json = JSON.stringify(this.$data, null, '    ')
