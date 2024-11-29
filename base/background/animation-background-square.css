@@ -20,6 +20,7 @@
 }
 
 .animation-background-square > *{
+  box-shadow: 0px 0px 3px #ffffff88;
   display: block;
   width: 30px;
   height: 30px;
@@ -28,7 +29,8 @@
   bottom: 0%;
   opacity: 100%;
   transform: translateY(100%) rotate(0deg);
-  animation: infinite linear 8s ani-animation-background-square-child;
+  animation: infinite linear 8s ani-animation-background-square-child,
+  infinite linear 3s ani-animation-background-square-child-light;
 }
 
 /*
@@ -98,6 +100,18 @@
     transform: translateY(-100%) rotate(720deg) scale(0.35);
     opacity: 5%;
     border-radius: 50%;
+  }
+}
+
+@keyframes ani-animation-background-square-child-light {
+  0%{
+    filter: hue-rotate(0deg);
+  }
+  50%{
+    filter: hue-rotate(180deg);
+  }
+  100%{
+    filter: hue-rotate(0deg);
   }
 }
 
