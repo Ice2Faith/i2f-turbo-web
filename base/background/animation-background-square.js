@@ -22,7 +22,7 @@ function initAnimationBackgroundSquireStyle(childCnt=10) {
     let duration=randInt(900)/100+3
     let bgColor=`rgb(${randInt(56)+200},${randInt(56)+200},${randInt(56)+200})`
     content+='\n' +
-      `.animation-background-square >*:nth-child(${i}){\n` +
+      `.animation-background-square >li:nth-child(${i}){\n` +
       `  left: ${rate}%;\n `  +
       `  animation-delay: -${delay}s;\n  ` +
       `  animation-duration: ${duration}s;\n` +
@@ -39,7 +39,7 @@ function initAnimationBackgroundSquireElement(childCnt=10){
     let dom=domList[i]
     let childrenNodes=dom.childNodes
     for (let j = childrenNodes.length; j < childCnt; j++) {
-      let childDom = document.createElement('span')
+      let childDom = document.createElement('li')
       dom.appendChild(childDom)
     }
   }

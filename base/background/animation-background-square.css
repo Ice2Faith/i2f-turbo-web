@@ -10,8 +10,34 @@
   animation: infinite linear 15s ani-animation-background-square-bg;
 }
 
+.animation-background-square::before,
+.animation-background-square::after{
+  content: '';
+  display: inline-block;
+  width: 250vw;
+  height: 80vh;
+  position: absolute;
+  filter: blur(10vh);
+}
+
+.animation-background-square::before{
+  left: 0%;
+  top: 0%;
+  transform: translate(-50%,-80%);
+  border-radius: 0% 50% 50% 0%;
+  background: rgba(81, 241, 192, 0.35);
+}
+
+.animation-background-square::after{
+  right: 0%;
+  bottom: 0%;
+  transform: translate(50%,80%);
+  border-radius: 50% 0% 0% 50%;
+  background: rgba(253, 97, 97, 0.35);
+}
+
 .animation-background-square,
-.animation-background-square > * {
+.animation-background-square > li {
   margin: 0;
   padding: 0;
   box-sizing: content-box;
@@ -19,7 +45,7 @@
   outline: none;
 }
 
-.animation-background-square > *{
+.animation-background-square > li{
   box-shadow: 0px 0px 3px #ffffff88;
   display: block;
   width: 30px;
@@ -32,61 +58,9 @@
   animation: infinite linear 8s ani-animation-background-square-child,
   infinite linear 3s ani-animation-background-square-child-light;
 }
-
-/*
-.animation-background-square >*:nth-child(0){
-  left: 5%;
-  animation-delay: 2s;
-  animation-duration: 5s;
-}
-
-.animation-background-square >*:nth-child(1){
-  left: 15%;
-  animation-delay: 1s;
-  animation-duration: 4s;
-}
-.animation-background-square >*:nth-child(2){
-  left: 25%;
-  animation-delay: 7s;
-  animation-duration: 6s;
-}
-.animation-background-square >*:nth-child(3){
-  left: 35%;
-  animation-delay: 3s;
-  animation-duration: 7s;
-}
-.animation-background-square >*:nth-child(4){
-  left: 45%;
-  animation-delay: 5s;
-  animation-duration: 8s;
-}
-.animation-background-square >*:nth-child(5){
-  left: 55%;
-  animation-delay: 4s;
-  animation-duration: 6s;
-}
-.animation-background-square >*:nth-child(6){
-  left: 65%;
-  animation-delay: 0s;
-  animation-duration: 9s;
-}
-.animation-background-square >*:nth-child(7){
-  left: 75%;
-  animation-delay: 2s;
-  animation-duration: 8s;
-}
-.animation-background-square >*:nth-child(8){
-  left: 85%;
-  animation-delay: 6s;
-  animation-duration: 5s;
-}
-.animation-background-square >*:nth-child(9){
-  left: 95%;
-  animation-delay: 4s;
-  animation-duration: 7s;
-}
-
-*/
+/**
+子元素样式，由js生成
+ */
 
 @keyframes ani-animation-background-square-child {
   0%{
