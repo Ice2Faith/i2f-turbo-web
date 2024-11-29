@@ -1,0 +1,123 @@
+.animation-background-square{
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(125deg,  #49ed55, #4dd3fb, #4861f0, #8844ff, #f8de32);
+  background-size: 400% 400%;
+  background-position: 50% 50%;
+  animation: infinite linear 15s ani-animation-background-square-bg;
+}
+
+.animation-background-square,
+.animation-background-square > * {
+  margin: 0;
+  padding: 0;
+  box-sizing: content-box;
+  border: none;
+  outline: none;
+}
+
+.animation-background-square > *{
+  display: block;
+  width: 30px;
+  height: 30px;
+  background: #00ffff;
+  position: absolute;
+  bottom: 0%;
+  opacity: 100%;
+  transform: translateY(100%) rotate(0deg);
+  animation: infinite linear 8s ani-animation-background-square-child;
+}
+
+/*
+.animation-background-square >*:nth-child(0){
+  left: 5%;
+  animation-delay: 2s;
+  animation-duration: 5s;
+}
+
+.animation-background-square >*:nth-child(1){
+  left: 15%;
+  animation-delay: 1s;
+  animation-duration: 4s;
+}
+.animation-background-square >*:nth-child(2){
+  left: 25%;
+  animation-delay: 7s;
+  animation-duration: 6s;
+}
+.animation-background-square >*:nth-child(3){
+  left: 35%;
+  animation-delay: 3s;
+  animation-duration: 7s;
+}
+.animation-background-square >*:nth-child(4){
+  left: 45%;
+  animation-delay: 5s;
+  animation-duration: 8s;
+}
+.animation-background-square >*:nth-child(5){
+  left: 55%;
+  animation-delay: 4s;
+  animation-duration: 6s;
+}
+.animation-background-square >*:nth-child(6){
+  left: 65%;
+  animation-delay: 0s;
+  animation-duration: 9s;
+}
+.animation-background-square >*:nth-child(7){
+  left: 75%;
+  animation-delay: 2s;
+  animation-duration: 8s;
+}
+.animation-background-square >*:nth-child(8){
+  left: 85%;
+  animation-delay: 6s;
+  animation-duration: 5s;
+}
+.animation-background-square >*:nth-child(9){
+  left: 95%;
+  animation-delay: 4s;
+  animation-duration: 7s;
+}
+
+*/
+
+@keyframes ani-animation-background-square-child {
+  0%{
+    bottom: 0%;
+    transform: translateY(100%) rotate(0deg) scale(1);
+    opacity: 100%;
+    border-radius: 0%;
+  }
+  100%{
+    bottom: 100%;
+    transform: translateY(-100%) rotate(720deg) scale(0.35);
+    opacity: 5%;
+    border-radius: 50%;
+  }
+}
+
+@keyframes ani-animation-background-square-bg {
+  0%{
+    background-position: 50% 50%;
+  }
+  25%{
+    background-position: 10% 25%;
+  }
+  50%{
+    background-position: 50% 50%;
+  }
+  75%{
+    background-position: 75% 90%;
+  }
+  100%{
+    background-position: 50% 50%;
+  }
+}
+
+
+
