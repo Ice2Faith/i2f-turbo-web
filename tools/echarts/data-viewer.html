@@ -326,9 +326,9 @@
                         left: 'center'
                     },
                     legend: {
-                        data: echartsConfig.labels,
+                        data: Object.keys(echartsConfig.dataMap),
                         right: '2%',
-                        bottom: '2%'
+                        bottom: '2%',
                     },
                     grid: {
                         left: '3%',
@@ -456,6 +456,7 @@
                         left: 'center'
                     },
                     legend: {
+                        data: Object.keys(echartsConfig.dataMap),
                         top: 'bottom'
                     },
                     tooltip: {
@@ -499,7 +500,13 @@
                     if (echartsObj == null || echartsObj == undefined) {
                         setTimeout(ensureFunc, 30)
                     } else {
-                        renderFunc(echartsObj)
+                        echartsObj.dispose()
+                        echartsObj = echarts.init(dom, 'custom')
+                        if (echartsObj == null || echartsObj == undefined) {
+                            setTimeout(ensureFunc, 30)
+                        }else{
+                            renderFunc(echartsObj)
+                        }
                     }
                 }
                 ensureFunc()
