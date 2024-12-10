@@ -200,7 +200,7 @@
             },
             sheetConfig: {
                 name: 'name',
-                series:[]
+                series: []
             }
         },
         mounted() {
@@ -217,7 +217,7 @@
             onUseSheetConfig() {
                 let config = JSON.parse(this.echartConfig)
                 config.series = this.sheetConfig.series
-                config.name=this.sheetConfig.name
+                config.name = this.sheetConfig.name
                 this.echartConfig = JSON.stringify(config, null, '    ')
                 this.renderChart()
             },
@@ -239,6 +239,35 @@
                 localStorage.removeItem('data-viewer')
                 window.location.reload()
             },
+            getObjectRouteValue(obj, path) {
+                if (!path || path == '') {
+                    return obj
+                }
+                let ret = obj
+                if (!ret) {
+                    return ret
+                }
+                let arr = path.split('.');
+                for (let i = 0; i < arr.length; i++) {
+                    let key = arr[i]
+                    if (!ret) {
+                        return ret
+                    }
+                    if (key.endsWith(']')) {
+                        let idx = key.indexOf('[')
+                        let nk = key.substring(idx + 1, key.length - 1)
+                        key = key.substring(0, idx)
+                        ret = ret[key]
+                        if (!ret) {
+                            return ret
+                        }
+                        ret = ret[nk]
+                    } else {
+                        ret = ret[key]
+                    }
+                }
+                return ret
+            },
             parseAsEchartsLineOptions(dataList, config) {
 
                 const echartsConfig = {
@@ -247,39 +276,9 @@
                     dataMap: {}
                 }
 
-                function getValue(obj, path) {
-                    if (!path || path == '') {
-                        return obj
-                    }
-                    let ret = obj
-                    if (!ret) {
-                        return ret
-                    }
-                    let arr = path.split('.');
-                    for (let i = 0; i < arr.length; i++) {
-                        let key = arr[i]
-                        if (!ret) {
-                            return ret
-                        }
-                        if (key.endsWith(']')) {
-                            let idx = key.indexOf('[')
-                            let nk = key.substring(idx + 1, key.length - 1)
-                            key = key.substring(0, idx)
-                            ret = ret[key]
-                            if (!ret) {
-                                return ret
-                            }
-                            ret = ret[nk]
-                        } else {
-                            ret = ret[key]
-                        }
-                    }
-                    return ret
-                }
-
                 dataList.forEach(item => {
                     if (typeof config.name == 'string') {
-                        echartsConfig.labels.push(getValue(item, config.name))
+                        echartsConfig.labels.push(this.getObjectRouteValue(item, config.name))
                     } else {
                         echartsConfig.labels.push(config.name(item))
                     }
@@ -291,7 +290,7 @@
                             echartsConfig.dataMap[key] = []
                         }
                         if (typeof prop == 'string') {
-                            echartsConfig.dataMap[key].push(getValue(item, prop))
+                            echartsConfig.dataMap[key].push(this.getObjectRouteValue(item, prop))
                         } else {
                             echartsConfig.dataMap[key].push(prop(item))
                         }
@@ -326,9 +325,9 @@
                         left: 'center'
                     },
                     legend: {
-                        data: echartsConfig.labels,
+                        data: Object.keys(echartsConfig.dataMap),
                         right: '2%',
-                        bottom: '2%'
+                        bottom: '2%',
                     },
                     grid: {
                         left: '3%',
@@ -374,39 +373,9 @@
                     dataMap: {}
                 }
 
-                function getValue(obj, path) {
-                    if (!path || path == '') {
-                        return obj
-                    }
-                    let ret = obj
-                    if (!ret) {
-                        return ret
-                    }
-                    let arr = path.split('.');
-                    for (let i = 0; i < arr.length; i++) {
-                        let key = arr[i]
-                        if (!ret) {
-                            return ret
-                        }
-                        if (key.endsWith(']')) {
-                            let idx = key.indexOf('[')
-                            let nk = key.substring(idx + 1, key.length - 1)
-                            key = key.substring(0, idx)
-                            ret = ret[key]
-                            if (!ret) {
-                                return ret
-                            }
-                            ret = ret[nk]
-                        } else {
-                            ret = ret[key]
-                        }
-                    }
-                    return ret
-                }
-
                 dataList.forEach(item => {
                     if (typeof config.name == 'string') {
-                        echartsConfig.labels.push(getValue(item, config.name))
+                        echartsConfig.labels.push(this.getObjectRouteValue(item, config.name))
                     } else {
                         echartsConfig.labels.push(config.name(item))
                     }
@@ -418,7 +387,7 @@
                             echartsConfig.dataMap[key] = []
                         }
                         if (typeof prop == 'string') {
-                            echartsConfig.dataMap[key].push(getValue(item, prop))
+                            echartsConfig.dataMap[key].push(this.getObjectRouteValue(item, prop))
                         } else {
                             echartsConfig.dataMap[key].push(prop(item))
                         }
@@ -430,17 +399,17 @@
 
                 for (let i = 0; i < config.series.length; i++) {
                     let key = config.series[i].name
-                    let list=[]
-                    for (let j = 0; j <echartsConfig.dataMap[key].length; j++) {
+                    let list = []
+                    for (let j = 0; j < echartsConfig.dataMap[key].length; j++) {
                         list.push({
                             value: echartsConfig.dataMap[key][j],
-                            name:echartsConfig.labels[j]
+                            name: echartsConfig.labels[j]
                         })
                     }
                     series.push({
                         name: key,
                         type: 'pie',
-                        center: [Math.round((i+0.5)/config.series.length*100)+'%', '50%'],
+                        center: [Math.round((i + 0.5) / config.series.length * 100) + '%', '50%'],
                         radius: [30, 150],
                         roseType: 'area',
                         itemStyle: {
@@ -456,6 +425,7 @@
                         left: 'center'
                     },
                     legend: {
+                        data: Object.keys(echartsConfig.dataMap),
                         top: 'bottom'
                     },
                     tooltip: {
@@ -465,17 +435,17 @@
                     toolbox: {
                         show: true,
                         feature: {
-                            mark: { show: true },
-                            dataView: { show: true, readOnly: false },
-                            restore: { show: true },
-                            saveAsImage: { show: true }
+                            mark: {show: true},
+                            dataView: {show: true, readOnly: false},
+                            restore: {show: true},
+                            saveAsImage: {show: true}
                         }
                     },
                     series: series
                 }
                 return options
             },
-            setOption(echartsId, option, callback, clear = false) {
+            setEchartsOption(echartsId, option, callback, clear = false) {
                 // 基于准备好的dom，初始化echarts实例
                 let _this = this
                 let echarts = this.$echarts
@@ -499,7 +469,15 @@
                     if (echartsObj == null || echartsObj == undefined) {
                         setTimeout(ensureFunc, 30)
                     } else {
-                        renderFunc(echartsObj)
+                        if(clear) {
+                            echartsObj.dispose()
+                            echartsObj = echarts.init(dom, 'custom')
+                        }
+                        if (echartsObj == null || echartsObj == undefined) {
+                            setTimeout(ensureFunc, 30)
+                        } else {
+                            renderFunc(echartsObj)
+                        }
                     }
                 }
                 ensureFunc()
@@ -509,7 +487,7 @@
 
                 if (this.enableNativeOptions) {
                     let option = JSON.parse(this.echartOption)
-                    this.setOption(domId, option, null, true)
+                    this.setEchartsOption(domId, option, null, true)
                 } else {
                     let list = []
                     if (this.enableSheetData) {
@@ -541,8 +519,8 @@
                             }
                             list.push(item)
                         }
-                        if(this.sheetWithName){
-                            this.sheetConfig.name=names.shift()
+                        if (this.sheetWithName) {
+                            this.sheetConfig.name = names.shift()
                         }
                         this.sheetConfig.series = []
                         for (let i = 0; i < names.length; i++) {
@@ -555,12 +533,12 @@
                         list = JSON.parse(this.dataList)
                     }
                     let option = {}
-                    if(this.enableShowPie){
-                        option=this.parseAsEchartsPieOptions(list, JSON.parse(this.echartConfig))
-                    }else{
-                        option=this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                    if (this.enableShowPie) {
+                        option = this.parseAsEchartsPieOptions(list, JSON.parse(this.echartConfig))
+                    } else {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
                     }
-                    this.setOption(domId, option, null, true)
+                    this.setEchartsOption(domId, option, null, true)
 
                     let json = JSON.stringify(this.$data, null, '    ')
                     localStorage.setItem('data-viewer', json)
