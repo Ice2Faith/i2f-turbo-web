@@ -598,6 +598,16 @@ Loader.loadVueComponent=function(url){
     })
 }
 
+/**
+ * 使用.vue文件创建网页
+ * 支持简单的.vue文件内容
+ * template,script,style
+ * 区别是，使用相对连接指定components,mixins,directives
+ * 具体可参考resolveVueDependency的vueOptions内容
+ * @param url
+ * @param domSelector
+ * @return {Promise<unknown>}
+ */
 Loader.createVue=function(url,domSelector='#app'){
     return new Promise((resolve, reject)=>{
         Loader.loadVueOptions(url)
@@ -619,6 +629,51 @@ Loader.createVue=function(url,domSelector='#app'){
     })
 }
 
+/**
+ * 递归解析VueOptions中的属性
+ * 将器加载为真实的对象
+ * 处理
+ * vueOptions.components
+ * vueOptions.mixins
+ * vueOptions.directives
+ * vueOptions.objects
+ * 使用案例:
+ * vueOptions={
+ *     components:{
+ *         test: './test.vue',
+ *         comp: './components/comp.vue',
+ *         parent: '../parent.vue'
+ *     },
+ *     mixins:['./common.js','./mixins/list.js'],
+ *     directives:{
+ *         show: './directives/show.js',
+ *         hover: '../common/hover-directive.js'
+ *     },
+ *     objects:{
+ *         rsa: '../util/rsa.js'
+ *     },
+ *     ...
+ *     以下是vue其他的配置,区别是上面这部分的写法
+ *     data(){
+ *         return {
+ *
+ *         }
+ *     },
+ *     mounted(){
+ *
+ *     },
+ *     created(){
+ *
+ *     },
+ *     methods:{
+ *
+ *     }
+ *
+ * }
+ * @param vueOptions
+ * @param baseHref
+ * @return {Promise<unknown>}
+ */
 Loader.resolveVueDependency=function(vueOptions,baseHref){
     let arr=[]
     if(vueOptions.components){
@@ -671,6 +726,23 @@ Loader.resolveVueDependency=function(vueOptions,baseHref){
                         .then(obj=>{
                             vueOptions.directives[key]=obj
                             Vue.directive(key,obj)
+                            res(true)
+                        }).catch(err=>{
+                        rej(false)
+                    })
+                }))
+            }
+        })
+    }
+    if(vueOptions.objects){
+        Object.keys(vueOptions.objects).forEach(key=>{
+            let value=vueOptions.objects[key]
+            if(typeof  value === 'string'){
+                arr.push(new Promise((res,rej)=>{
+                    let nextHref=new URL(value,baseHref).href
+                    Loader.loadObject(nextHref)
+                        .then(obj=>{
+                            vueOptions.objects[key]=obj
                             res(true)
                         }).catch(err=>{
                         rej(false)
