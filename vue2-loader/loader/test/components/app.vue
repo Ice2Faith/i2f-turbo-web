@@ -17,10 +17,10 @@ export default {
   name: "test",
   title: '测试页面',
   components:{
-    comp: './comp.vue',
-    reso: './loader/reso.vue'
+    comp: './comp/comp.vue',
+    reso: './comp/reso/reso.vue'
   },
-  mixins:['./mixin.js'],
+  mixins:['../mixins/mixin.js'],
   data(){
     return {
       message: 'hello'

@@ -3,6 +3,7 @@
     {{message}}
     <span>world</span>
     <comp></comp>
+    <hr/>
   </div>
 </template>
 

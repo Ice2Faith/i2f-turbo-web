@@ -1,9 +1,9 @@
 <template>
   <div>
     {{message}}
-    <span>is xxx!</span>
+    <span>is ts!</span>
     <hr/>
-    <next></next>
+    <child></child>
   </div>
 </template>
 
@@ -11,7 +11,7 @@
 <script>
 export default {
   components:{
-    next: './comp.vue'
+    child: '../child/child.vue'
   },
   data(){
     return {
@@ -21,7 +21,7 @@ export default {
   },
   mounted(){
     this.timer=setInterval(()=>{
-      this.message=new Date().getTime()+'///'
+      this.message=new Date().getTime()+''
     },1000)
   },
   destroyed(){

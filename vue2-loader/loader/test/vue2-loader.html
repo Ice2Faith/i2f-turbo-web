@@ -2,10 +2,10 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <script src="./vue@2_dist_vue.js"></script>
+    <script src="../vue@2_dist_vue.js"></script>
     <title>vue2</title>
 
-    <script src="./loader.js"></script>
+    <script src="../Vue2Loader.js"></script>
 
 </head>
 <body>
@@ -14,25 +14,24 @@
    </div>
 </body>
 <script>
-    // Loader.loadObject('../mixin.js')
+    // Vue2Loader.loadObject('./mixins/mixin.js')
     //     .then(obj=>{
     //         console.log(obj)
     //     })
 
-    // Loader.createVue('../comp.vue')
+    // Vue2Loader.createVue('./components/comp/comp.vue')
     //     .then(app=>{
     //         console.log(app)
     //     })
 
-    // Loader.loadObject('../mixin.js')
+    // Vue2Loader.loadObject('./mixins/mixin.js')
     //     .then(mixinOptions=>{
-    //         debugger
-    //         Loader.loadVueOptions('../comp.vue')
+    //         Vue2Loader.loadVueOptions('./components/comp/comp.vue')
     //             .then(compOptions=>{
     //                 // 全局注册组件
     //                 // Vue.component('comp',compOptions)
     //
-    //                 Loader.loadVueOptions('../test.vue')
+    //                 Vue2Loader.loadVueOptions('./components/test.vue')
     //                     .then(vueOptions=>{
     //                         vueOptions.el='#app'
     //                         // 局部注册组件
@@ -46,7 +45,7 @@
     //             })
     //     })
 
-Loader.createVue('../app.vue')
+Vue2Loader.createVue('./components/app.vue')
 
 
 </script>

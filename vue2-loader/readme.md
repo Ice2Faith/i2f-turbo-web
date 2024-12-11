@@ -10,72 +10,26 @@
 
 ---
 
-## comp.vue
+## test.html
 
-- this is a ***comp.vue*** file
-
-```html
-<template>
-  <div class="comp">
-    {{message}}
-  </div>
-</template>
-
-<header>
-  <title>vue2-loader</title>
-</header>
-
-<script>
-export default {
-  name: "comp",
-  data(){
-    return {
-      message: 'xxx',
-      timer:null
-    }
-  },
-  mounted(){
-    this.timer=setInterval(()=>{
-      this.message=new Date()+''
-    },1000)
-  },
-  destroyed(){
-    clearInterval(this.timer)
-  }
-}
-</script>
-
-<style>
-.comp{
-  color: red;
-}
-.--this span{
- color: #444;
-}
-</style>
-```
-
-## comp.html
-
-- this is a ***comp.html*** file
+- this is a ***test.html*** file
 
 ```html
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
-    <!-- <script src="./vue@2_dist_vue.js"></script> -->
+    <meta charset="UTF-8">
     <title>vue2</title>
-    <script src="./vue2-loader.js"></script>
-
+    <script src="../vue@2_dist_vue.js"></script>
+    <script src="../Vue2Loader.js"></script>
 </head>
 <body>
-
+<div id="app">
+</div>
 </body>
 <script>
-    Vue2Loader.setupVueApp({
-        url:'./comp.vue'
-    })
+
+    Vue2Loader.createVue('./components/app.vue','#app')
 
 </script>
 <style>
@@ -84,9 +38,68 @@ export default {
 </html>
 ```
 
+## app.vue
+
+- this is a ***app.vue*** file
+
+```html
+<template>
+    <div class="app">
+        {{message}}
+        <span>world</span>
+        <comp></comp>
+        <hr/>
+        <reso></reso>
+    </div>
+</template>
+
+<header>
+    <title>加油</title>
+</header>
+
+<script>
+    export default {
+        name: "test",
+        title: '测试页面',
+        components:{
+            comp: './comp/comp.vue',
+            reso: './comp/reso/reso.vue'
+        },
+        mixins:['../mixins/mixin.js'],
+        data(){
+            return {
+                message: 'hello'
+            }
+        },
+        created(){
+            this.alertHello()
+        }
+    }
+</script>
+
+<style scoped>
+    .app{
+        color: blue;
+    }
+    .--this{
+        background: lightseagreen;
+    }
+    .--this span{
+        color: coral;
+    }
+    span{
+        color: cyan;
+    }
+</style>
+```
+
 ---
 
-- now, you got an vue page ***comp.html***,and could be view it in browser
+- now, you got an vue page ***test.html***,and could be view it in browser
 - but also, if you want view page in local file, 
 - you must use ***vue2-converter.js*** to convert as local ***cors-origin*** support format(jsonp)
 - or direct use ***convertor.html*** to complete this work.
+
+## more
+
+- more information cloud to view comments doc in ***Vue2Loader.js***
