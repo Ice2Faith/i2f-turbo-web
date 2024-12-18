@@ -37,7 +37,19 @@
                   placeholder="echarts的原生options"></el-input>
     </template>
     <template v-else>
-        <el-checkbox v-model="enableShowPie" @change="renderChart">玫瑰图</el-checkbox>
+        <el-radio-group v-model="showType" @change="renderChart">
+            <el-radio label="line">折线图</el-radio>
+            <el-radio label="lineArea">折线-面积图</el-radio>
+            <el-radio label="lineStack">折线-堆叠图</el-radio>
+            <el-radio label="lineStackArea">折线-堆叠面积图</el-radio>
+            <el-radio label="bar">柱状图</el-radio>
+            <el-radio label="barPolar">柱状-极坐标图</el-radio>
+            <el-radio label="barStack">柱状-堆叠图</el-radio>
+            <el-radio label="barPolarStack">柱状-极坐标堆叠图</el-radio>
+            <el-radio label="circle">饼图</el-radio>
+            <el-radio label="pie">玫瑰图</el-radio>
+            <el-radio label="treemap">树图</el-radio>
+        </el-radio-group>
         <el-input v-model="echartConfig"
                   @keyup.enter.native="renderChart"
                   type="textarea"
@@ -89,7 +101,7 @@
             sheetUseDotSeparator: false,
             sheetWithHead: true,
             sheetWithName: true,
-            enableShowPie: false,
+            showType: 'line',
             echartOption: '',
             dataList: '',
             sheetData: 'NO\tALL_CNT\tSTATUS_CNT\tVALID_CNT\n' +
@@ -445,6 +457,82 @@
                 }
                 return options
             },
+            parseAsEchartsTreemapOptions(dataList, config) {
+
+                const echartsConfig = {
+                    title: config.title,
+                    labels: [],
+                    dataMap: {}
+                }
+
+                dataList.forEach(item => {
+                    if (typeof config.name == 'string') {
+                        echartsConfig.labels.push(this.getObjectRouteValue(item, config.name))
+                    } else {
+                        echartsConfig.labels.push(config.name(item))
+                    }
+
+                    for (let i = 0; i < config.series.length; i++) {
+                        let key = config.series[i].name
+                        let prop = config.series[i].prop
+                        if (!echartsConfig.dataMap[key]) {
+                            echartsConfig.dataMap[key] = []
+                        }
+                        if (typeof prop == 'string') {
+                            echartsConfig.dataMap[key].push(this.getObjectRouteValue(item, prop))
+                        } else {
+                            echartsConfig.dataMap[key].push(prop(item))
+                        }
+                    }
+                })
+
+
+                let series = []
+
+                for (let i = 0; i < config.series.length; i++) {
+                    let key = config.series[i].name
+                    let list = []
+                    for (let j = 0; j < echartsConfig.dataMap[key].length; j++) {
+                        list.push({
+                            value: echartsConfig.dataMap[key][j],
+                            name: echartsConfig.labels[j]
+                        })
+                    }
+                    series.push({
+                        name: key,
+                        type: 'treemap',
+                        left: Math.round(i / config.series.length * 100) + '%',
+                        width: Math.round(95.0 / config.series.length) + '%',
+                        data: list
+                    })
+                }
+
+                const options = {
+                    title: {
+                        text: echartsConfig.title,
+                        left: 'center'
+                    },
+                    legend: {
+                        data: Object.keys(echartsConfig.dataMap),
+                        top: 'bottom'
+                    },
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b} : {c}'
+                    },
+                    toolbox: {
+                        show: true,
+                        feature: {
+                            mark: {show: true},
+                            dataView: {show: true, readOnly: false},
+                            restore: {show: true},
+                            saveAsImage: {show: true}
+                        }
+                    },
+                    series: series
+                }
+                return options
+            },
             setEchartsOption(echartsId, option, callback, clear = false) {
                 // 基于准备好的dom，初始化echarts实例
                 let _this = this
@@ -533,8 +621,93 @@
                         list = JSON.parse(this.dataList)
                     }
                     let option = {}
-                    if (this.enableShowPie) {
+                    if(this.showType=='treemap'){
+                        option = this.parseAsEchartsTreemapOptions(list, JSON.parse(this.echartConfig))
+                    } else if (this.showType=='pie') {
                         option = this.parseAsEchartsPieOptions(list, JSON.parse(this.echartConfig))
+                    } else if (this.showType=='circle') {
+                        option = this.parseAsEchartsPieOptions(list, JSON.parse(this.echartConfig))
+                        option.series.forEach(e=>{
+                            e.radius='50%'
+                            delete e.roseType
+                            delete e.itemStyle
+                        })
+                    } else if(this.showType=='bar') {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                        option.series.forEach(e=>{
+                            e.type='bar'
+                        })
+                    } else if(this.showType=='barPolar') {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                        option.series.forEach(e=>{
+                            e.type='bar'
+                            e.coordinateSystem= 'polar'
+                        })
+                        option=Object.assign(option,{
+                            polar: {
+                                radius: [30, '80%']
+                            },
+                            angleAxis: {
+                                startAngle: 75
+                            },
+                            radiusAxis: {
+                                type: 'category',
+                                data: option.xAxis.data
+                            },
+                        })
+                        delete option.xAxis
+                        delete option.yAxis
+                    } else if(this.showType=='barStack') {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                        option.series.forEach(e=>{
+                            e.type='bar'
+                            e.stack='total'
+                        })
+                    } else if(this.showType=='barPolarStack') {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                        option.series.forEach(e=>{
+                            e.type='bar'
+                            e.stack='total'
+                            e.coordinateSystem= 'polar'
+                        })
+                        option=Object.assign(option,{
+                            polar: {
+                                radius: [30, '80%']
+                            },
+                            angleAxis: {
+                                startAngle: 75
+                            },
+                            radiusAxis: {
+                                type: 'category',
+                                data: option.xAxis.data
+                            },
+                        })
+                        delete option.xAxis
+                        delete option.yAxis
+                    } else if(this.showType=='line') {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                    } else if(this.showType=='lineArea') {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                        option.series.forEach(e=>{
+                            e.type='line'
+                            e.areaStyle= {}
+                        })
+                    } else if(this.showType=='lineStack') {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                        option.series.forEach(e=>{
+                            e.type='line'
+                            e.stack= 'Total'
+                        })
+                    } else if(this.showType=='lineStackArea') {
+                        option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
+                        option.series.forEach(e=>{
+                            e.type='line'
+                            e.stack= 'Total'
+                            e.areaStyle= {}
+                            e.emphasis= {
+                                focus: 'series'
+                            }
+                        })
                     } else {
                         option = this.parseAsEchartsLineOptions(list, JSON.parse(this.echartConfig))
                     }
