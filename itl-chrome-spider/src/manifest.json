@@ -1,16 +1,23 @@
 {
-  "manifest_version": 2,
-  "version": "1.0.0",
-  "minimum_chrome_version": "10.0",
   "name": "chrome-spider-plugin",
+  "version": "1.0.0",
+  "manifest_version": 3,
   "description": "chrome resources spider plugin",
   "devtools_page": "devtools.html",
-  "browser_action": {},
+  "action": {},
+  "content_security_policy": {
+	  "extension_pages": "script-src 'self'; object-src 'self'",
+	  "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; object-src 'self'"
+  },
   "permissions": [
     "webRequest",
-    "webRequestBlocking",
-    "*://*/*",
-    "tabs"
+    "tabs",
+	"scripting",
+    "webNavigation",
+    "storage"
+  ],
+  "host_permissions":[
+	"*://*/*"
   ],
   "content_scripts": [
     {
@@ -20,8 +27,11 @@
       "js": [
         "jquery-1.10.2.min.js",
         "hack.js"
-      ]
+      ],
+	  "run_at": "document_end"
     }
   ],
-  "background": {}
+  "background": {
+    "service_worker": "sw.js"
+  }
 }

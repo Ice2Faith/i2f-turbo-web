@@ -1,11 +1,4 @@
-function forceHackInit() {
-	if ($(".hackArea").length > 0) {
-		return;
-	}
-	console.log('hacking');
-
-	let injectScript =
-		`
+function injectObject(){
 	var $hk={
 		dom:function(sel){
 			return document.querySelectorAll(sel);
@@ -215,13 +208,21 @@ function forceHackInit() {
 				return new Date(year, month - 1, day, hour, min, sec, msec);
 			},
 		}
-		
-		
+
+
 	}
 	;
+	window.$hk=$hk;
 	document.$hk=$hk;
-`
-	eval(injectScript);
+}
+
+function forceHackInit() {
+	if ($(".hackArea").length > 0) {
+		return;
+	}
+	injectObject()
+	console.log('hacking');
+
 	console.log('eval inject script');
 	var hackHtml =
 		'<div class="hackArea">' +
@@ -268,10 +269,7 @@ function forceHackInit() {
 		'border: solid 1px red;' +
 		'border-radius: 3px;' +
 		'}' +
-		'</style>' +
-		'<script>' +
-		injectScript +
-		'</script>';
+		'</style>';
 	$(document.body).append(hackHtml);
 
 	$("#hackEditable").click(function () {
@@ -318,13 +316,13 @@ function forceHackInit() {
 		printfAllAudios();
 	});
 
-	
 
 	$("#hackObj").click(function () {
 		console.log('mount $hk', $hk);
 		document.$hk = $hk;
 		console.log('mount document.$hk', document.$hk);
 		$('body').$hk = $hk;
+		window.$hk=$hk;
 		console.log('mount document.$hk', document.$hk);
 	});
 
