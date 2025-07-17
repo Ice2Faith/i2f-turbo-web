@@ -379,6 +379,7 @@ function showOnlyGiteeFileContent(){
 	try{document.querySelector('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder div.file_content').style.borderLeft='none';}catch(e){}
 	try{document.querySelector('div.site-content div.container div.git-project-content-wrapper div.project-right-side-contaner').remove()}catch(e){}
 	try{document.querySelector('div.site-content div.container div.register-guide').style.display='none';}catch(e){}
+	try{document.querySelector('div.site-content div.container div.git-project-content-wrapper div.project-left-side-contaner').style.display='none';}catch(e){}
 	let imgs=document.querySelectorAll('div.site-content div.container div.git-project-content-wrapper div.git-project-content div.file_holder div.file_content img');
 	for(let i=0;i<imgs.length;i++){
 		imgs[i].style.width='100vw';
