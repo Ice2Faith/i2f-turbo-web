@@ -6,7 +6,7 @@
 </head>
 <body>
 <canvas id="canvas" style="width: 78vw;height: 96vh;float:left;"></canvas>
-<div style="width: 18vw;height: 96vh;float: right;border:solid 1px #eee;">
+<div style="width: 18vw;height: 96vh;float: right;border:solid 1px #eee;font-size: 12px;">
 	<div class="form-item">
         <span class="form-item-label">演示模式</span>
         <span class="form-item-content">
@@ -48,6 +48,12 @@
         <span class="form-item-label">终点倾向率：</span>
         <span class="form-item-content">
             <input id="endPosRate" type="number" value="0.5"/>
+        </span>
+    </div>
+    <div class="form-item">
+        <span class="form-item-label">中心率：</span>
+        <span class="form-item-content">
+            <input id="centerRate" type="number" value="0.3"/>
         </span>
     </div>
     <div class="form-item">
@@ -108,6 +114,8 @@
 			&emsp;&emsp;终点倾向率(endRate)：表示倾向于终点的权重，值为0.5时，是传统A*算法<br/>
 			大于0.5时，偏向于尽快结束算法，得到的结果不一定是最短路径，在大多数情况下，效果都不错，能够提升算法效率<br/>
 			小于0.5时，则逐渐退化为填充查找算法，得到结果较慢<br/>
+            &emsp;&emsp;中心率(centerRate)：表示倾向于两点之间直线的趋近重，值为1时，是尽量逼近直线<br/>
+            值越小，则允许偏离直线的范围越大，0时则不控制对于直线偏离不做控制<br/>
     </div>
 </div>
 </body>
@@ -152,6 +160,9 @@
 		document.getElementById('endPosRate').onchange=()=>{
 			updateUiSetting(context)
 		}
+        document.getElementById('centerRate').onchange=()=>{
+            updateUiSetting(context)
+        }
 		document.getElementById('drawLink').onchange=()=>{
 			updateUiSetting(context)
 		}
@@ -232,6 +243,7 @@
         context.sleepTime = Math.floor(parseFloat(document.getElementById('sleepTime').value))
         context.sleepTriggerRate = parseFloat(document.getElementById('sleepTriggerRate').value)
         context.endPosRate = parseFloat(document.getElementById('endPosRate').value)
+        context.centerRate = parseFloat(document.getElementById('centerRate').value)
 
         context.drawLink = document.getElementById('drawLink').checked
         context.smoothColor = document.getElementById('smoothColor').checked
@@ -261,6 +273,7 @@
             },
             ttl: 0
         }
+        let minWeight=context.distance(context.beginPos.x, context.beginPos.y,context.endPos.x, context.endPos.y)
         beginStep.weight.predict = context.distance(beginStep.pos.x, beginStep.pos.y, context.endPos.x, context.endPos.y)
         beginStep.weight.sum = beginStep.weight.history + beginStep.weight.predict
         context.stepQueue.push(beginStep)
@@ -286,6 +299,9 @@
 
         let endRate=context.endPosRate
         let hisRate=1.0-endRate
+
+        let centerRate=context.centerRate
+        let leaveCenterRate=1.0-centerRate
 
         context._maxTtl=0
 
@@ -349,6 +365,8 @@
                 }
                 let nvalue = context.getMapAt(nx, ny)
                 if (nvalue == context.MAP_EMPTY() && !visitedMap[`${nx}#${ny}`]) {
+                    let lostWeight=context.distance(nx,ny,context.beginPos.x,context.beginPos.y)+context.distance(nx,ny,context.endPos.x,context.endPos.y)-minWeight
+
                     let nhistory = context.distance(cur.pos.x, cur.pos.y, nx, ny)
                     let nStep = {
                         prev: cur,
@@ -366,6 +384,7 @@
                     nStep.weight.history = cur.weight.history + nhistory
                     nStep.weight.predict = context.distance(nStep.pos.x, nStep.pos.y, context.endPos.x, context.endPos.y)
                     nStep.weight.sum = nStep.weight.history*hisRate + nStep.weight.predict*endRate
+                    nStep.weight.sum=nStep.weight.sum*leaveCenterRate+(nStep.weight.sum+lostWeight)*centerRate
                     context.stepQueue.push(nStep)
                     visitedMap[`${nx}#${ny}`] = true
 
@@ -603,6 +622,7 @@
             sleepTime: 30,
             sleepTriggerRate: 1,
             endPosRate: 0.5,
+            centerRate: 0.3,
             drawLink: true,
             smoothColor: true,
             drawWeight: true,
