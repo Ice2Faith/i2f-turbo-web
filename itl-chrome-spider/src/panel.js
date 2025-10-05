@@ -392,6 +392,116 @@ function responseBodyMatcher(url,headers,res){
 
 
 // 解析快手视频
+function parseKuaishouLikeVideo(url, headers, res) {
+    let ret = [];
+
+    let needParse=false
+    // 快手视频
+    // 个人主页相关列表
+    const likeUrl = '/rest/v/feed/liked';
+    if (url.indexOf(likeUrl) >= 0) {
+        needParse=true;
+    }
+
+    const collectUrl='/rest/v/collect/list'
+    if (url.indexOf(collectUrl) >= 0) {
+        needParse=true;
+    }
+
+    const privateUrl='/rest/v/profile/private/list'
+    if (url.indexOf(privateUrl) >= 0) {
+        needParse=true;
+    }
+
+    if(!needParse){
+        return ret;
+    }
+
+    needParse=false;
+
+    if ($("#ckbKuaishouLike").prop('checked')) {
+        needParse=true;
+    }
+
+    if ($("#ckbKuaishouCollect").prop('checked')) {
+        needParse=true;
+    }
+
+    if ($("#ckbKuaishouPrivate").prop('checked')) {
+        needParse=true;
+    }
+
+    if(!needParse){
+        return ret;
+    }
+
+    if (!res) {
+        return ret;
+    }
+
+
+    if(!res.feeds){
+        return ret;
+    }
+
+    let feeds=res.feeds
+
+    if(!feeds || feeds.length==0){
+        return
+    }
+
+    for (let i = 0; i < feeds.length; i++) {
+        let doc = {
+            type: 'video',
+            url: null,
+            title: null,
+            img: null,
+            authorName: null,
+            authorAvatar: null,
+            authorId: null,
+            authorHome: null,
+        };
+        let item = feeds[i];
+        if (!item) {
+            continue;
+        }
+        if (!item.photo) {
+            continue;
+        }
+        if (!item.photo.photoUrls) {
+            continue;
+        }
+        if (item.photo.photoUrls.length==0) {
+            continue;
+        }
+        let curr=item.photo.photoUrls[0]
+        if(!curr.url || curr.url==''){
+            continue
+        }
+
+        doc.url = curr.url;
+        doc.title = item.photo.caption;
+        if (doc.filename && doc.filename != "") {
+            doc.filename = safeFileName(doc.title) + '.mp4';
+        } else {
+            doc.filename = 'download.mp4';
+        }
+        doc.img = item.photo.coverUrl;
+        if (item.author) {
+            doc.authorName = item.author.name;
+            doc.authorAvatar = item.author.headerUrl;
+            doc.authorId = item.author.id;
+            doc.authorHome = 'https://www.kuaishou.com/profile/' + doc.authorId;
+        }
+
+        ret.push(doc);
+    }
+
+    return ret;
+}
+
+
+// 解析快手视频
 function parseKuaishouVideo(url, headers, res) {
     let ret = [];
 
@@ -1064,32 +1174,54 @@ chrome.devtools.network.onRequestFinished.addListener(async (...args) => {
         return;
     }
 
-    responseBodyMatcher(url, responseHeader, respObj)
-
     try {
-
-
-        let tiktokList = parseTiktokVideo(url, responseHeader, respObj);
-        mergeIntoList(tiktokList, contentList);
-
-        let toutiaoList = parseToutiaoVideo(url, responseHeader, respObj);
-        mergeIntoList(toutiaoList, contentList);
-
-        let weiboList = parseWeiboVideo(url, responseHeader, respObj);
-        mergeIntoList(weiboList, contentList);
-
-        let kuaisouList=parseKuaishouVideo(url,responseHeader,respObj);
-        mergeIntoList(kuaisouList,contentList)
-
-        renderVideos(contentList);
-
-        $('.downloadClass').click(function () {
-            download($(this).attr('url'), $(this).attr('name'));
-        })
-
-        refreshCount();
+        responseBodyMatcher(url, responseHeader, respObj)
     } catch (e) {
         log(e.stack);
     }
+
+
+    try {
+        let tiktokList = parseTiktokVideo(url, responseHeader, respObj);
+        mergeIntoList(tiktokList, contentList);
+    } catch (e) {
+        log(e.stack);
+    }
+
+    try {
+        let toutiaoList = parseToutiaoVideo(url, responseHeader, respObj);
+        mergeIntoList(toutiaoList, contentList);
+    } catch (e) {
+        log(e.stack);
+    }
+
+    try {
+        let weiboList = parseWeiboVideo(url, responseHeader, respObj);
+        mergeIntoList(weiboList, contentList);
+    } catch (e) {
+        log(e.stack);
+    }
+
+    try {
+        let kuaisouList = parseKuaishouVideo(url, responseHeader, respObj);
+        mergeIntoList(kuaisouList, contentList)
+    } catch (e) {
+        log(e.stack);
+    }
+
+    try {
+        let kuaisouLikeList = parseKuaishouLikeVideo(url, responseHeader, respObj);
+        mergeIntoList(kuaisouLikeList, contentList)
+    } catch (e) {
+        log(e.stack);
+    }
+
+    renderVideos(contentList);
+
+    $('.downloadClass').click(function () {
+        download($(this).attr('url'), $(this).attr('name'));
+    })
+
+    refreshCount();
 });
 
