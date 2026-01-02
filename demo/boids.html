@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鸟群模拟算法</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #1a2980, #26d0ce);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 10vw;
+            text-align: center;
+            padding: 20px;
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1rem;
+            text-shadow: 2px 2px 4px rgba(128, 128, 128, 0.5);
+        }
+        .canvas-container {
+            position: fixed;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .controls {
+            position: fixed;
+            right: 0;
+            top: 0;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            width: 15vw;
+            z-index: 999;
+            font-size: 0.7rem;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: row;
+        }
+        label {
+            color: white;
+            width: 80px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        footer {
+            color: white;
+            margin-top: auto;
+            padding: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: row;
+                align-items: center;
+            }
+            .control-group {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>鸟群算法演示</h1>
+        </header>
+        
+        <div class="canvas-container">
+            <canvas id="boidsCanvas"></canvas>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="separation">分离强度</label>
+                <input type="range" id="separation" min="0" max="2" step="0.1" value="1.5">
+            </div>
+            <div class="control-group">
+                <label for="alignment">对齐强度</label>
+                <input type="range" id="alignment" min="0" max="2" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <label for="cohesion">凝聚强度</label>
+                <input type="range" id="cohesion" min="0" max="2" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <label for="speed">整体速度</label>
+                <input type="range" id="speed" min="0.5" max="3" step="0.1" value="1.5">
+            </div>
+            <div class="control-group">
+                <label for="boidCount">鸟的数量</label>
+                <input type="range" id="boidCount" min="10" max="200" step="10" value="80">
+            </div>
+        </div>
+        
+        <footer>
+            <p>基于Craig Reynolds的Boids算法 | HTML5 Canvas实现</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('boidsCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 设置画布尺寸为窗口大小
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Boid类 - 代表单个鸟
+            class Boid {
+                constructor() {
+                    this.position = {
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height
+                    };
+                    this.velocity = {
+                        x: (Math.random() - 0.5) * 4,
+                        y: (Math.random() - 0.5) * 4
+                    };
+                    this.acceleration = { x: 0, y: 0 };
+                    this.maxSpeed = parseFloat(document.getElementById('speed').value);
+                    this.maxForce = 0.2;
+                    this.perceptionRadius = Math.random()*60+20;
+                    this.color = `hsl(${Math.random() * 360}, 80%, 60%)`;
+                }
+                
+                // 更新位置
+                update() {
+                    this.velocity.x += this.acceleration.x;
+                    this.velocity.y += this.acceleration.y;
+                    
+                    // 限制速度
+                    const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
+                    if (speed > this.maxSpeed) {
+                        this.velocity.x = (this.velocity.x / speed) * this.maxSpeed;
+                        this.velocity.y = (this.velocity.y / speed) * this.maxSpeed;
+                    }
+                    
+                    this.position.x += this.velocity.x;
+                    this.position.y += this.velocity.y;
+                    
+                    // 重置加速度
+                    this.acceleration = { x: 0, y: 0 };
+                    
+                    // 边界检查 - 环绕屏幕
+                    if (this.position.x < -10) this.position.x = canvas.width + 10;
+                    if (this.position.x > canvas.width + 10) this.position.x = -10;
+                    if (this.position.y < -10) this.position.y = canvas.height + 10;
+                    if (this.position.y > canvas.height + 10) this.position.y = -10;
+                }
+                
+                // 应用行为规则
+                applyRules(boids) {
+                    const separation = this.separate(boids);
+                    const alignment = this.align(boids);
+                    const cohesion = this.cohere(boids);
+                    
+                    // 获取滑块值
+                    const separationStrength = parseFloat(document.getElementById('separation').value);
+                    const alignmentStrength = parseFloat(document.getElementById('alignment').value);
+                    const cohesionStrength = parseFloat(document.getElementById('cohesion').value);
+                    
+                    // 应用权重
+                    separation.x *= separationStrength;
+                    separation.y *= separationStrength;
+                    alignment.x *= alignmentStrength;
+                    alignment.y *= alignmentStrength;
+                    cohesion.x *= cohesionStrength;
+                    cohesion.y *= cohesionStrength;
+                    
+                    // 更新加速度
+                    this.acceleration.x += separation.x + alignment.x + cohesion.x;
+                    this.acceleration.y += separation.y + alignment.y + cohesion.y;
+
+                }
+                
+                // 分离规则：避免与邻近个体碰撞
+                separate(boids) {
+                    const steering = { x: 0, y: 0 };
+                    let total = 0;
+                    
+                    for (let other of boids) {
+                        const distance = this.getDistance(other);
+                        if (other !== this && distance < this.perceptionRadius / 1.5) {
+                            const diff = {
+                                x: this.position.x - other.position.x,
+                                y: this.position.y - other.position.y
+                            };
+                            // 距离越近，排斥力越大
+                            steering.x += diff.x / (distance * distance);
+                            steering.y += diff.y / (distance * distance);
+                            total++;
+                        }
+                    }
+                    
+                    if (total > 0) {
+                        steering.x /= total;
+                        steering.y /= total;
+                        
+                        // 标准化并应用最大力
+                        const magnitude = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
+                        if (magnitude > 0) {
+                            steering.x = (steering.x / magnitude) * this.maxForce;
+                            steering.y = (steering.y / magnitude) * this.maxForce;
+                        }
+                    }
+                    
+                    return steering;
+                }
+                
+                // 对齐规则：与邻近个体平均方向保持一致
+                align(boids) {
+                    const steering = { x: 0, y: 0 };
+                    let total = 0;
+                    
+                    for (let other of boids) {
+                        const distance = this.getDistance(other);
+                        if (other !== this && distance < this.perceptionRadius) {
+                            steering.x += other.velocity.x;
+                            steering.y += other.velocity.y;
+                            total++;
+                        }
+                    }
+
+                    if(total <= 3){
+                        if(Math.random()<0.05) {
+                            steering.x += Math.random()*1-0.5;
+                            steering.y += Math.random()*1-0.5;
+                            total++;
+                        }
+                    }
+                    
+                    if (total > 0) {
+                        steering.x /= total;
+                        steering.y /= total;
+                        
+                        // 标准化并应用最大力
+                        const magnitude = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
+                        if (magnitude > 0) {
+                            steering.x = (steering.x / magnitude) * this.maxForce;
+                            steering.y = (steering.y / magnitude) * this.maxForce;
+                        }
+                    }
+                    
+                    return steering;
+                }
+                
+                // 凝聚规则：向邻近个体的中心移动
+                cohere(boids) {
+                    const steering = { x: 0, y: 0 };
+                    let total = 0;
+                    
+                    for (let other of boids) {
+                        const distance = this.getDistance(other);
+                        if (other !== this && distance < this.perceptionRadius) {
+                            steering.x += other.position.x;
+                            steering.y += other.position.y;
+                            total++;
+                        }
+                    }
+                    
+                    if (total > 0) {
+                        steering.x /= total;
+                        steering.y /= total;
+                        
+                        // 指向中心点的向量
+                        steering.x = steering.x - this.position.x;
+                        steering.y = steering.y - this.position.y;
+                        
+                        // 标准化并应用最大力
+                        const magnitude = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
+                        if (magnitude > 0) {
+                            steering.x = (steering.x / magnitude) * this.maxForce;
+                            steering.y = (steering.y / magnitude) * this.maxForce;
+                        }
+                    }
+                    
+                    return steering;
+                }
+                
+                // 计算与另一个Boid的距离
+                getDistance(other) {
+                    const dx = this.position.x - other.position.x;
+                    const dy = this.position.y - other.position.y;
+                    return Math.sqrt(dx * dx + dy * dy);
+                }
+                
+                // 绘制Boid
+                draw() {
+                    // 绘制主体（实心圆）
+                    ctx.beginPath();
+                    ctx.arc(this.position.x, this.position.y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                    
+                    // 绘制方向指示线
+                    const angle = Math.atan2(this.velocity.y, this.velocity.x);
+                    ctx.beginPath();
+                    ctx.moveTo(this.position.x, this.position.y);
+                    ctx.lineTo(
+                        this.position.x + Math.cos(angle) * 10,
+                        this.position.y + Math.sin(angle) * 10
+                    );
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+            }
+            
+            // 初始化鸟群
+            let flock = [];
+            function initializeFlock() {
+                flock = [];
+                const count = parseInt(document.getElementById('boidCount').value);
+                for (let i = 0; i < count; i++) {
+                    flock.push(new Boid());
+                }
+            }
+            
+            initializeFlock();
+            
+            // 动画循环
+            function animate() {
+                // 清除画布
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 更新并绘制所有Boid
+                for (let boid of flock) {
+                    boid.applyRules(flock);
+                    boid.update();
+                    boid.draw();
+                }
+                
+                requestAnimationFrame(animate);
+            }
+            
+            // 启动动画
+            animate();
+            
+            // 添加事件监听器以响应控件变化
+            document.getElementById('separation').addEventListener('input', updateParams);
+            document.getElementById('alignment').addEventListener('input', updateParams);
+            document.getElementById('cohesion').addEventListener('input', updateParams);
+            document.getElementById('speed').addEventListener('input', updateParams);
+            document.getElementById('boidCount').addEventListener('input', function() {
+                initializeFlock();
+            });
+            
+            function updateParams() {
+                const speed = parseFloat(document.getElementById('speed').value);
+                for (let boid of flock) {
+                    boid.maxSpeed = speed;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
