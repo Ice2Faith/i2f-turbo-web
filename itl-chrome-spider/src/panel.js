@@ -507,7 +507,7 @@ function parseKuaishouVideo(url, headers, res) {
 
     // 快手视频
     // 个人主页相关列表
-    const catchUrl = '/graphql';
+    const catchUrl = '/profile/feed';
     if (url.indexOf(catchUrl) < 0) {
         return ret;
     }
@@ -516,16 +516,11 @@ function parseKuaishouVideo(url, headers, res) {
         return ret;
     }
 
-    if (!res.data) {
+    if(!res.feeds){
         return ret;
     }
 
-
-    if(!res.data.visionProfilePhotoList){
-        return ret;
-    }
-
-    let feeds=res.data.visionProfilePhotoList.feeds
+    let feeds=res.feeds
 
     if(!feeds || feeds.length==0){
         return
@@ -549,28 +544,28 @@ function parseKuaishouVideo(url, headers, res) {
         if (!item.photo) {
             continue;
         }
-        if (!item.photo.videoResource) {
+		
+		doc.url=null
+		
+		if(!doc.url && item.photo.photoH265Urls){
+			doc.url = item.photo.photoH265Urls[1]?.url || item.photo.photoH265Urls[0]?.url;
+		}
+		if(!doc.url && item.photo.photoUrls){
+			doc.url = item.photo.photoUrls[1]?.url || item.photo.photoUrls[0]?.url;
+		}
+		if(!doc.url && item.photo.manifestH265){
+			doc.url = item.photo.manifestH265.adaptationSet[1]?.representation[0]?.backupUrl || item.photo.manifestH265.adaptationSet[0]?.representation[0]?.backupUrl;
+		}
+		if(!doc.url && item.photo.manifest){
+			doc.url = item.photo.manifest.adaptationSet[1]?.representation[0]?.backupUrl || item.photo.manifest.adaptationSet[0]?.representation[0]?.backupUrl;
+		}
+		
+		if (!doc.url) {
             continue;
         }
-        if (!item.photo.videoResource.h264) {
-            continue;
-        }
-        if (!item.photo.videoResource.h264.adaptationSet) {
-            continue;
-        }
-        if (item.photo.videoResource.h264.adaptationSet.length==0) {
-            continue;
-        }
-        let representation=item.photo.videoResource.h264.adaptationSet[0].representation
-        if(!representation || representation.length==0){
-            continue;
-        }
-        let curr=representation[0]
-        if(!curr.url || curr.url==''){
-            continue
-        }
+ 
 
-        doc.url = curr.url;
+        
         doc.title = item.photo.caption;
         if (doc.filename && doc.filename != "") {
             doc.filename = safeFileName(doc.title) + '.mp4';
@@ -660,7 +655,7 @@ function parseToutiaoVideo(url, headers, res) {
         }
 
 
-        doc.url = item.video.play_addr.url_list[0];
+        doc.url = item.video.play_addr.url_list[2] || item.video.play_addr.url_list[1] || item.video.play_addr.url_list[0];
         doc.title = item.title;
         if (doc.filename && doc.filename != "") {
             doc.filename = safeFileName(doc.title) + '.mp4';
@@ -756,7 +751,7 @@ function parseTiktokVideo(url, headers, res) {
             continue;
         }
 
-        doc.url = item.video.play_addr.url_list[0];
+        doc.url = item.video.play_addr.url_list[2] || item.video.play_addr.url_list[1] || item.video.play_addr.url_list[0];
         doc.title = item.desc;
         if (doc.filename && doc.filename != "") {
             doc.filename = safeFileName(doc.title) + '.mp4';
