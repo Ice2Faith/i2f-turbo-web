@@ -556,6 +556,10 @@
             #content {
                 padding: 16px 14px 60px;
             }
+
+            #print-page{
+                display: none;
+            }
         }
 
         /* ===== Logo 点击触发切换 ===== */
@@ -779,6 +783,7 @@
         <span class="sep">/</span>
         <span class="current" id="crumb-file">readme.md</span>
     </div>
+    <button id="print-page" class="home-btn" title="打印页面">🖶</button>
     <a class="home-btn" href="#" onclick="event.preventDefault();navigateTo(appConfig.index)">&#127968; 首页</a>
     <button id="theme-btn" class="home-btn" title="切换深色/浅色主题">🌙</button>
 </div>
@@ -1599,6 +1604,26 @@
 
     document.getElementById('theme-btn').addEventListener('click', () => {
         applyTheme(!document.body.classList.contains('dark'));
+    });
+
+    function printPage(){
+        let props=['--bg','--surface','--code-bg','--sidebar-bg'];
+        for (let prop of props) {
+            let val = getComputedStyle(document.body).getPropertyValue(prop);
+            if(val.startsWith('#') && val.length==9){
+                document.body.style.setProperty(prop,val.substring(0,7))
+            }
+        }
+        document.getElementById('top-bar').style.display='none';
+        document.getElementById('sidebar-overlay').style.display='none';
+        document.getElementById('sidebar').style.display='none';
+        document.body.style.height='auto';
+        document.body.style.overflow='auto';
+        window.print();
+    }
+
+    document.getElementById('print-page').addEventListener('click',()=>{
+       printPage()
     });
 
     // 初始化主题：优先读 localStorage，其次跟随系统偏好
