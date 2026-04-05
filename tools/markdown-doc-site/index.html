@@ -698,6 +698,61 @@
         body.dark #top-bar {
             box-shadow: 0 1px 4px rgba(0, 0, 0, .3);
         }
+
+        /* ===== 媒体文件（图片/音视频）包装器 ===== */
+        .media-wrapper {
+            margin: 1em 0;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--surface);
+        }
+
+        .media-label {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: var(--code-bg);
+            border-bottom: 1px solid var(--border);
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .media-wrapper img,
+        .media-wrapper video,
+        .media-wrapper audio {
+            display: block;
+            width: 100%;
+        }
+
+        .media-wrapper img,
+        .media-wrapper video {
+            max-width: 100%;
+            height: auto;
+            max-height: calc(100vh - 160px);
+        }
+
+        .media-wrapper audio {
+            padding: 12px;
+            background: var(--surface);
+        }
+
+        /* 深色模式适配 */
+        body.dark .media-wrapper {
+            background: var(--surface);
+            border-color: var(--border);
+        }
+
+        body.dark .media-label {
+            background: #1c2128;
+            border-bottom-color: var(--border);
+        }
+
+        body.dark .media-wrapper audio {
+            background: var(--surface);
+        }
     </style>
 </head>
 <body>
@@ -925,18 +980,123 @@
     let currentFilePath = 'readme.md';
 
     /**
-     * 重写链接渲染，拦截 .md 相对路径
+     * 获取文件名（不含路径）
+     */
+    function getFileBaseName(path) {
+        if (!path || path == '') {
+            return '';
+        }
+        // 处理 URL 中的查询参数
+        const cleanPath = path.split('?')[0];
+        let idx = cleanPath.lastIndexOf('/');
+        if (idx >= 0) {
+            return cleanPath.substring(idx + 1);
+        }
+        return cleanPath;
+    }
+
+    /**
+     * 重写图片渲染，限制最大宽度，显示文件名
+     */
+    renderer.image = function (href, title, text) {
+        if (!href) return `<img alt="${text || ''}" title="${title || ''}" />`;
+        const fileName = getFileBaseName(href);
+        const displayName = fileName || text || '';
+        return `<div class="media-wrapper">
+            <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
+            <img src="${href}" alt="${text || ''}" title="${title || ''}" style="max-width:100%;height:auto;" />
+        </div>`;
+    };
+
+    /**
+     * 判断是否为视频文件
+     */
+    function isVideoFile(path) {
+        const ext = getFileSuffix(path).toLowerCase();
+        return ['.mp4', '.webm', '.ogg', '.mov', '.mkv', '.avi'].includes(ext);
+    }
+
+    /**
+     * 判断是否为音频文件
+     */
+    function isAudioFile(path) {
+        const ext = getFileSuffix(path).toLowerCase();
+        return ['.mp3', '.wav', '.ogg', '.aac', '.flac', '.m4a', '.wma'].includes(ext);
+    }
+
+    /**
+     * 判断是否为PDF文件
+     */
+    function isPdfFile(path) {
+        const ext = getFileSuffix(path).toLowerCase();
+        return ['.pdf'].includes(ext);
+    }
+
+    /**
+     * 重写链接渲染，拦截 .md 相对路径，同时支持音视频渲染
      */
     renderer.link = function (href, title, text) {
         if (!href) return `<a>${text}</a>`;
 
         // 处理绝对外链
         if (/^https?:\/\//i.test(href)) {
+            // 检测是否为音视频链接
+            if (isVideoFile(href)) {
+                const fileName = getFileBaseName(href);
+                const displayName = fileName || text || '';
+                return `<div class="media-wrapper">
+                    <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
+                    <video src="${href}" controls style="max-width:100%;" title="${title || ''}">${text}</video>
+                </div>`;
+            }
+            if (isAudioFile(href)) {
+                const fileName = getFileBaseName(href);
+                const displayName = fileName || text || '';
+                return `<div class="media-wrapper">
+                    <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
+                    <audio src="${href}" controls title="${title || ''}">${text}</audio>
+                </div>`;
+            }
             return `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener">${text}</a>`;
         }
 
         // 相对路径
         const resolved = resolvePath(currentFilePath, href);
+
+        // 视频文件：渲染 video 标签，显示文件名
+        if (isVideoFile(resolved)) {
+            const fileName = getFileBaseName(href);
+            const displayName = fileName || text || '';
+            return `<div class="media-wrapper">
+                <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
+                <video src="${href}" controls style="max-width:100%;" title="${title || ''}">${text}</video>
+            </div>`;
+        }
+
+        // 音频文件：渲染 audio 标签，显示文件名
+        if (isAudioFile(resolved)) {
+            const fileName = getFileBaseName(href);
+            const displayName = fileName || text || '';
+            return `<div class="media-wrapper">
+                <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
+                <audio src="${href}" controls title="${title || ''}">${text}</audio>
+            </div>`;
+        }
+
+        // pdf文件：渲染 object 标签，显示文件名
+        if (isPdfFile(resolved)) {
+            const fileName = getFileBaseName(href);
+            const displayName = fileName || text || '';
+            return `<div class="media-wrapper">
+                <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
+                <object name="output.pdf" style="width: 100%;" width="100%" height="${window.innerHeight-160}px"
+                data="${href}#navpanes=0&amp;toolbar=0"
+                type="application/pdf">
+                    <div style="width: 100%;text-align: center;margin: 5px;">您的浏览器不支持预览PDF！请点击查看</div>
+                </object>
+            </div>`;
+
+        }
 
         if (isMdFile(resolved)) {
             // md 文件：使用 JS 跳转
