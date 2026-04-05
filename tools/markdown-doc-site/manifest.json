@@ -1,4 +1,5 @@
 {
   "title": "Docs Site",
-  "index": "./readme.md"
+  "index": "./readme.md",
+  "background": "./pages/bgimg.jpg"
 }

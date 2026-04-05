@@ -52,15 +52,15 @@
             --sidebar-width: 280px;
             --toc-width: 240px;
             --header-height: 52px;
-            --bg: #f6f8fa;
-            --surface: #ffffff;
+            --bg: #f6f8faaa;
+            --surface: #ffffff77;
             --border: #e1e4e8;
             --text: #24292f;
             --text-muted: #6e7781;
             --accent: #0969da;
             --accent-hover: #0550ae;
-            --code-bg: #f6f8fa;
-            --sidebar-bg: #f0f2f5;
+            --code-bg: #f6f8faaa;
+            --sidebar-bg: #f0f2f5dd;
             --toc-active: #0969da;
             --scrollbar: #c8ccd0;
         }
@@ -550,6 +550,7 @@
 
             body.sidebar-open #sidebar-overlay {
                 display: block;
+                background: rgba(0,0,0,0.8);
             }
 
             #content {
@@ -642,15 +643,15 @@
 
         /* ===== 深色主题 ===== */
         body.dark {
-            --bg: #0d1117;
-            --surface: #161b22;
+            --bg: #0d1117aa;
+            --surface: #161b2277;
             --border: #30363d;
             --text: #e6edf3;
             --text-muted: #7d8590;
             --accent: #58a6ff;
             --accent-hover: #79c0ff;
-            --code-bg: #1c2128;
-            --sidebar-bg: #13161d;
+            --code-bg: #1c2128aa;
+            --sidebar-bg: #13161ddd;
             --toc-active: #58a6ff;
             --scrollbar: #30363d;
             color-scheme: dark;
@@ -752,6 +753,20 @@
 
         body.dark .media-wrapper audio {
             background: var(--surface);
+        }
+
+        /* ===== 页面背景图片 ===== */
+        #page-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: -1;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -1501,7 +1516,7 @@
        =================================================== */
 
     /** 默认配置 */
-    const DEFAULT_CONFIG = {title: 'Docs', index: 'readme.md'};
+    const DEFAULT_CONFIG = {title: 'Docs', index: 'readme.md', background: ''};
 
     /** 当前全局配置（初始化前先使用默认值） */
     let appConfig = Object.assign({}, DEFAULT_CONFIG);
@@ -1514,14 +1529,39 @@
             const resp = await fetch('manifest.json?t=' + Date.now());
             if (!resp.ok) throw new Error('not found');
             const data = await resp.json();
-            if (data.title) appConfig.title = String(data.title);
-            if (data.index) appConfig.index = String(data.index).replace(/^\.\//, '');
+            if (data.title){
+                appConfig.title = String(data.title);
+            }
+            if (data.index){
+                appConfig.index = String(data.index).replace(/^\.\//, '');
+            }
+            if (data.background){
+                appConfig.background = String(data.background);
+            }
         } catch (e) {
             // 加载失败，保持默认配置，不作任何提示
         }
         // 将 logo 更新为配置的 title
         document.getElementById('app-logo').textContent = '\uD83D\uDCC4 ' + appConfig.title;
         document.title = appConfig.title;
+        // 应用背景图片
+        applyBackground();
+    }
+
+    /**
+     * 应用背景图片配置
+     */
+    function applyBackground() {
+        if (!appConfig.background){
+            return;
+        }
+        let bgEl = document.getElementById('page-background');
+        if (!bgEl) {
+            bgEl = document.createElement('div');
+            bgEl.id = 'page-background';
+            document.body.insertBefore(bgEl, document.body.firstChild);
+        }
+        bgEl.style.backgroundImage = `url(${appConfig.background})`;
     }
 
     /* ===================================================
