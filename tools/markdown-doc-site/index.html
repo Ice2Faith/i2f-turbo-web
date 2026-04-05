@@ -913,6 +913,7 @@
         if (!path || path == '') {
             return '';
         }
+        path=getFileBaseName(path);
         let idx = path.lastIndexOf('.');
         if (idx >= 0) {
             return path.substring(idx);
@@ -920,20 +921,10 @@
         return '';
     }
 
-    function getFileName(path) {
-        if (!path || path == '') {
-            return '';
-        }
-        let idx = path.lastIndexOf('/');
-        if (idx >= 0) {
-            return path.substring(idx + 1);
-        }
-        return '';
-    }
 
     /** 判断是否为页内可渲染的文本文件 */
     function isTextFile(path) {
-        const name = getFileName(path).toLowerCase();
+        const name = getFileBaseName(path).toLowerCase();
         if (name in TEXT_FILE_NAME_LANGS) {
             return true;
         }
@@ -946,7 +937,7 @@
 
     /** 根据文件路径获取语言标识 */
     function getFileLang(path) {
-        const name = getFileName(path).toLowerCase();
+        const name = getFileBaseName(path).toLowerCase();
         let lang = TEXT_FILE_NAME_LANGS[name];
         if (lang && lang != '') {
             return lang;
@@ -996,12 +987,42 @@
     }
 
     /**
+     * 是否有不预览的参数
+     * @param href {string}
+     */
+    function hasNoPreviewParam(href){
+        if(!href){
+            return false;
+        }
+        let idx=href.indexOf("?");
+        if(idx<0){
+            return false;
+        }
+        href=href.substring(idx+1);
+        idx=href.indexOf('#')
+        if(idx>=0){
+            href=href.substring(0,idx);
+        }
+        let urlParams = new URLSearchParams(href);
+        let val = urlParams.get('_preview');
+        if(val == 'no' || val=='0' || val=='false'){
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * 重写图片渲染，限制最大宽度，显示文件名
      */
     renderer.image = function (href, title, text) {
-        if (!href) return `<img alt="${text || ''}" title="${title || ''}" />`;
         const fileName = getFileBaseName(href);
-        const displayName = fileName || text || '';
+        const displayName = (fileName==text? fileName : (text + '['+fileName+']')) || fileName || text || '';
+        if(hasNoPreviewParam(href)){
+            return `<a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a>`;
+        }
+        if (!href){
+            return `<img alt="${text || ''}" title="${title || ''}" />`;
+        }
         return `<div class="media-wrapper">
             <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
             <img src="${href}" alt="${text || ''}" title="${title || ''}" style="max-width:100%;height:auto;" />
@@ -1013,7 +1034,7 @@
      */
     function isVideoFile(path) {
         const ext = getFileSuffix(path).toLowerCase();
-        return ['.mp4', '.webm', '.ogg', '.mov', '.mkv', '.avi'].includes(ext);
+        return ['.mp4', '.webm', '.mov', '.mkv', '.avi', '.flv'].includes(ext);
     }
 
     /**
@@ -1041,22 +1062,38 @@
         // 处理绝对外链
         if (/^https?:\/\//i.test(href)) {
             // 检测是否为音视频链接
-            if (isVideoFile(href)) {
+            if (isVideoFile(href) && !hasNoPreviewParam(href)) {
                 const fileName = getFileBaseName(href);
-                const displayName = fileName || text || '';
+                const displayName = (fileName==text? fileName : (text + '['+fileName+']')) || fileName || text || '';
                 return `<div class="media-wrapper">
                     <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
                     <video src="${href}" controls style="max-width:100%;" title="${title || ''}">${text}</video>
                 </div>`;
             }
-            if (isAudioFile(href)) {
+            if (isAudioFile(href) && !hasNoPreviewParam(href)) {
                 const fileName = getFileBaseName(href);
-                const displayName = fileName || text || '';
+                const displayName = (fileName==text? fileName : (text + '['+fileName+']')) || fileName || text || '';
                 return `<div class="media-wrapper">
                     <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
                     <audio src="${href}" controls title="${title || ''}">${text}</audio>
                 </div>`;
             }
+
+            // pdf文件：渲染 object 标签，显示文件名
+            if (isPdfFile(href) && !hasNoPreviewParam(href)) {
+                const fileName = getFileBaseName(href);
+                const displayName = (fileName==text? fileName : (text + '['+fileName+']')) || fileName || text || '';
+                return `<div class="media-wrapper">
+                <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
+                <object name="output.pdf" style="width: 100%;" width="100%" height="${window.innerHeight-160}px"
+                data="${href}#navpanes=0&amp;toolbar=0"
+                type="application/pdf">
+                    <div style="width: 100%;text-align: center;margin: 5px;">您的浏览器不支持预览PDF！请点击查看</div>
+                </object>
+            </div>`;
+
+            }
+
             return `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener">${text}</a>`;
         }
 
@@ -1064,9 +1101,9 @@
         const resolved = resolvePath(currentFilePath, href);
 
         // 视频文件：渲染 video 标签，显示文件名
-        if (isVideoFile(resolved)) {
+        if (isVideoFile(resolved) && !hasNoPreviewParam(href)) {
             const fileName = getFileBaseName(href);
-            const displayName = fileName || text || '';
+            const displayName = (fileName==text? fileName : (text + '['+fileName+']')) || fileName || text || '';
             return `<div class="media-wrapper">
                 <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
                 <video src="${href}" controls style="max-width:100%;" title="${title || ''}">${text}</video>
@@ -1074,9 +1111,9 @@
         }
 
         // 音频文件：渲染 audio 标签，显示文件名
-        if (isAudioFile(resolved)) {
+        if (isAudioFile(resolved) && !hasNoPreviewParam(href)) {
             const fileName = getFileBaseName(href);
-            const displayName = fileName || text || '';
+            const displayName = (fileName==text? fileName : (text + '['+fileName+']')) || fileName || text || '';
             return `<div class="media-wrapper">
                 <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
                 <audio src="${href}" controls title="${title || ''}">${text}</audio>
@@ -1084,9 +1121,9 @@
         }
 
         // pdf文件：渲染 object 标签，显示文件名
-        if (isPdfFile(resolved)) {
+        if (isPdfFile(resolved) && !hasNoPreviewParam(href)) {
             const fileName = getFileBaseName(href);
-            const displayName = fileName || text || '';
+            const displayName = (fileName==text? fileName : (text + '['+fileName+']')) || fileName || text || '';
             return `<div class="media-wrapper">
                 <div class="media-label"><a href="${href}" target="_blank">🎵 ${escapeHtml(displayName)}</a></div>
                 <object name="output.pdf" style="width: 100%;" width="100%" height="${window.innerHeight-160}px"
