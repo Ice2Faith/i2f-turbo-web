@@ -391,6 +391,213 @@ function responseBodyMatcher(url,headers,res){
 }
 
 
+// 解析哔哩哔哩个人收藏
+function parseBilibiliFav(url, headers, res) {
+    let ret = [];
+
+    if(url.indexOf('bilibili.com')<0){
+        return ret;
+    }
+
+    let needParse=false
+    // 哔哩哔哩
+    // 个人收藏列表
+    const likeUrl = '/fav/resource/list';
+    if (url.indexOf(likeUrl) >= 0) {
+        needParse=true;
+    }
+
+    if(!needParse){
+        return ret;
+    }
+
+    needParse=false;
+
+    if ($("#ckbBilibiliFav").prop('checked')) {
+        needParse=true;
+    }
+
+
+    if(!needParse){
+        return ret;
+    }
+
+    if (!res) {
+        return ret;
+    }
+
+
+    if(!res.data){
+        return ret;
+    }
+
+    if(!res.data.medias){
+        return ret;
+    }
+
+    let medias=res.data.medias
+
+    if(!medias || medias.length==0){
+        return
+    }
+
+    for (let i = 0; i < medias.length; i++) {
+        let doc = {
+            type: 'video',
+            url: null,
+            title: null,
+            img: null,
+            authorName: null,
+            authorAvatar: null,
+            authorId: null,
+            authorHome: null,
+        };
+        let item = medias[i];
+        if (!item) {
+            continue;
+        }
+        // 失效视频，跳过
+        if(item.title && item.title.indexOf('已失效视频')>=0){
+            continue;
+        }
+        if (!item.bvid) {
+            continue;
+        }
+        if (!item.cover) {
+            continue;
+        }
+
+        doc.url = 'https://www.bilibili.com/video/'+item.bvid+'/';
+        doc.title = item.title;
+        if (doc.title && doc.title != "") {
+            doc.filename = safeFileName(doc.title) + '.mp4';
+        } else {
+            doc.filename = 'download.mp4';
+        }
+        doc.img = item.cover;
+        if (item.upper) {
+            doc.authorName = item.upper.name;
+            doc.authorAvatar = item.upper.face;
+            doc.authorId = item.upper.mid;
+            doc.authorHome = 'https://space.bilibili.com/' + doc.authorId+'/video';
+        }
+
+        ret.push(doc);
+    }
+
+    return ret;
+}
+
+var currentUpper={}
+// 解析哔哩哔哩UP投稿
+function parseBilibiliUserVideo(url, headers, res) {
+    let ret = [];
+
+    if(url.indexOf('bilibili.com')<0){
+        return ret;
+    }
+
+    if(url.indexOf('/space/wbi/acc/info')>=0){
+        currentUpper=res.data || {}
+    }
+
+    let needParse=false
+    // 哔哩哔哩
+    // UP主页投稿列表
+    const likeUrl = '/space/wbi/arc/search';
+    if (url.indexOf(likeUrl) >= 0) {
+        needParse=true;
+    }
+
+    if(!needParse){
+        return ret;
+    }
+
+    needParse=false;
+
+    if ($("#ckbBilibiliUserVideo").prop('checked')) {
+        needParse=true;
+    }
+
+
+    if(!needParse){
+        return ret;
+    }
+
+    if (!res) {
+        return ret;
+    }
+
+
+    if(!res.data){
+        return ret;
+    }
+
+    if(!res.data.list){
+        return ret;
+    }
+
+    if(!res.data.list.vlist){
+        return ret;
+    }
+
+    let vlist=res.data.list.vlist
+
+    if(!vlist || vlist.length==0){
+        return
+    }
+
+    for (let i = 0; i < vlist.length; i++) {
+        let doc = {
+            type: 'video',
+            url: null,
+            title: null,
+            img: null,
+            authorName: null,
+            authorAvatar: null,
+            authorId: null,
+            authorHome: null,
+        };
+        let item = vlist[i];
+        if (!item) {
+            continue;
+        }
+        // 失效视频，跳过
+        if(item.title && item.title.indexOf('已失效视频')>=0){
+            continue;
+        }
+        // 充电专属，跳过
+        if(item.elec_arc_type==1){
+            continue;
+        }
+        if (!item.bvid) {
+            continue;
+        }
+        if (!item.pic) {
+            continue;
+        }
+
+        doc.url = 'https://www.bilibili.com/video/'+item.bvid+'/';
+        doc.title = item.title;
+        if (doc.title && doc.title != "") {
+            doc.filename = safeFileName(doc.title) + '.mp4';
+        } else {
+            doc.filename = 'download.mp4';
+        }
+        doc.img = item.pic;
+        if (item.author) {
+            doc.authorName = item.author;
+            doc.authorAvatar = currentUpper.face;
+            doc.authorId = item.mid;
+            doc.authorHome = 'https://space.bilibili.com/' + doc.authorId+'/video';
+        }
+
+        ret.push(doc);
+    }
+
+    return ret;
+}
+
 // 解析快手视频
 function parseKuaishouLikeVideo(url, headers, res) {
     let ret = [];
@@ -481,7 +688,7 @@ function parseKuaishouLikeVideo(url, headers, res) {
 
         doc.url = curr.url;
         doc.title = item.photo.caption;
-        if (doc.filename && doc.filename != "") {
+        if (doc.title && doc.title != "") {
             doc.filename = safeFileName(doc.title) + '.mp4';
         } else {
             doc.filename = 'download.mp4';
@@ -1207,6 +1414,20 @@ chrome.devtools.network.onRequestFinished.addListener(async (...args) => {
     try {
         let kuaisouLikeList = parseKuaishouLikeVideo(url, responseHeader, respObj);
         mergeIntoList(kuaisouLikeList, contentList)
+    } catch (e) {
+        log(e.stack);
+    }
+
+    try {
+        let bilibiliUserVideoList = parseBilibiliUserVideo(url, responseHeader, respObj);
+        mergeIntoList(bilibiliUserVideoList, contentList)
+    } catch (e) {
+        log(e.stack);
+    }
+
+    try {
+        let bilibiliFavList = parseBilibiliFav(url, responseHeader, respObj);
+        mergeIntoList(bilibiliFavList, contentList)
     } catch (e) {
         log(e.stack);
     }
