@@ -15,8 +15,81 @@ function Vue2Loader() {
  */
 Vue2Loader.parser = new DOMParser()
 
+
 /**
- *
+ * 使用简单的方式
+ * 直接分割VUE模版各个部分
+ * 适用要求：返回的标记，最好都独占一行，否则可能解析会出现问题
+ * @param content
+ * @returns {{template: string, header: string, style: string, script: string}}
+ */
+function parseVueSFC(content) {
+    const lines = content.split('\n');
+    const sections = {template: '', script: '', style: '', header: ''};
+    // 使用累计栈实现
+    let currentContent = ''
+    let stack = []
+
+    const startTagRegex = /^\s*<\s*(template|script|style|header)(\s+[^>]*)?>\s*$/;
+    const endTagRegex = /^\s*<\s*\/\s*(template|script|style|header)\s*>\s*$/;
+
+    for (const line of lines) {
+        const trimmed = line; // 保留原始行用于拼接，但匹配时使用原样（因为正则已处理空白）
+        let topSection = stack.length == 0 ? null : stack[stack.length - 1];
+
+        currentContent += line + '\n';
+
+        // 检查是否结束标签
+        const endMatch = line.match(endTagRegex);
+        if (endMatch) {
+            const section = endMatch[1];
+            if (topSection === section) {
+                stack.pop();
+                if (stack.length == 0) {
+                    sections[section] = currentContent;
+                    currentContent = '';
+                }
+            }
+            continue;
+        }
+
+        // 检查是否开始标签
+        const startMatch = line.match(startTagRegex);
+        if (startMatch) {
+            const section = startMatch[1];
+            stack.push(section);
+        }
+
+    }
+
+    // 异常情况，未完全匹配，还是依旧保留
+    if (stack.length > 0) {
+        let section = stack[0];
+        sections[section] = currentContent;
+        currentContent = '';
+    }
+
+    let stripTags = function (str, tag) {
+        return str.trim().replace(new RegExp(`^\\s*<${tag}[^>]*>\\s*`), '')
+            .replace(new RegExp(`\\s*</${tag}>\\s*$`), '');
+    }
+    // 去除末尾多余换行
+    Object.keys(sections).forEach(key => {
+        sections[key] = stripTags(sections[key], key);
+    });
+
+    return sections;
+}
+
+/**
+ * 这是按照标准HTML解析的
+ * 如果出现非标准HTML的内容
+ * 将会被隐式转换
+ * 例如：
+ * 驼峰命名的标签名会被转换为全小写
+ * 自闭的非标准标签，会被转换为只有开始标记，没有结束标记的开放标签
+ * 这两种情况都是问题
+ * 因此，需要结合实际情况决定是否使用此方法
  * @param html {string}
  * @return {Document}
  */
@@ -117,20 +190,31 @@ Vue2Loader.fetchXhr = function (url, options) {
         options.responseType = 'text'
     }
     return new Promise(function (resolve, reject) {
-        let xhr = new XMLHttpRequest();
-        xhr.open(options.method, url);
-        xhr.responseType = options.responseType
-        xhr.onload = function (event) {
-            if (this.status === 200) {
-                resolve(this.response)
-            } else {
-                reject({
-                    status: this.status,
-                    statusText: this.statusText
-                })
+        try {
+            if (new URL(url, window.location.href).protocol === 'file:') {
+                reject('file protocol un-support')
+                return
             }
+            let xhr = new XMLHttpRequest();
+            xhr.open(options.method, url);
+            xhr.responseType = options.responseType
+            xhr.onload = function (event) {
+                if (this.status === 200) {
+                    resolve(this.response)
+                } else {
+                    reject({
+                        status: this.status,
+                        statusText: this.statusText
+                    })
+                }
+            }
+            xhr.send()
+        } catch (e) {
+            reject({
+                status: this.status,
+                statusText: this.statusText
+            })
         }
-        xhr.send()
     })
 }
 
@@ -254,6 +338,7 @@ Vue2Loader.fetchJsonp = function (url, options) {
     })
 }
 
+
 /**
  *
  * @param url {string}
@@ -276,10 +361,27 @@ Vue2Loader.fetchUrl = function (url) {
         value: undefined
     })
         .catch(function (err) {
+            if (new URL(url, window.location.href).protocol === 'file:') {
+                return Vue2Loader.fetchFile(url)
+                    .then(function (res) {
+                        return res.text()
+                    })
+            } else {
+                return Promise.reject({
+                    ok: false,
+                    value: undefined
+                })
+            }
+        })
+        .catch(function (err) {
             // use fetch
             let href = url
-            if ((typeof fetch) !== 'undefined') {
-                return fetch(href, {
+            let workFetch = window.fetch;
+            if ((typeof originFetch) !== 'undefined') {
+                workFetch = originFetch;
+            }
+            if ((typeof workFetch) !== 'undefined') {
+                return workFetch(href, {
                     mode: 'no-cors'
                 }).then(function (res) {
                     if (res.status != 200) {
@@ -438,6 +540,292 @@ Vue2Loader.fetchUrl = function (url) {
 }
 
 /**
+ * @type {FileSystemItem}
+ * @constructor {FileSystemItem}
+ * @return {FileSystemItem}
+ */
+function FileSystemItem() {
+    /**
+     * @type {string|null}
+     */
+    this.name = null;
+    /**
+     * @type {FileSystemHandle|null}
+     */
+    this.handle = null;
+    /**
+     * @type {string|null}
+     */
+    this.path = null;
+    /**
+     * @type {string|null}
+     */
+    this.parentPath = null;
+    /**
+     * @type {FileSystemDirectoryHandle|null}
+     */
+    this.parent = null;
+    /**
+     * @type {File|null}
+     */
+    this.file = null;
+    /**
+     * @type {boolean}
+     */
+    this.isFile = false;
+}
+
+/**
+ * get local filesystem directory handle
+ *
+ * @return {Promise<FileSystemDirectoryHandle>}
+ */
+Vue2Loader.getDirectoryHandle = function () {
+    return showDirectoryPicker({
+        mode: 'read',
+        startIn: 'desktop',
+        id: 'project_home'
+    })
+}
+
+/**
+ * tree dirPath files
+ *
+ * @param rootDirHandle {FileSystemDirectoryHandle}
+ * @param dirPath {string|null}
+ * @returns {Promise<FileSystemItem[]>}
+ */
+Vue2Loader.scanFilesMappingNext = async function (rootDirHandle, dirPath) {
+    /**
+     * @type {FileSystemItem[]}
+     */
+    let ret = []
+    if (!rootDirHandle) {
+        return ret
+    }
+    if (!dirPath) {
+        dirPath = ''
+    }
+    for await (const [name, handle] of rootDirHandle.entries()) {
+
+        let item = new FileSystemItem()
+        item.name = name
+        item.handle = handle
+        item.path = dirPath + '/' + name
+        item.parentPath = dirPath
+        item.parent = rootDirHandle
+        item.file = null
+        item.isFile = false
+
+
+        ret.push(item)
+
+        if (handle.kind === 'file') {
+            item.isFile = true
+            item.file = await item.handle.getFile()
+        } else {
+            let next = await Vue2Loader.scanFilesMappingNext(handle, item.path)
+            ret.push(...next)
+        }
+    }
+    return ret
+}
+
+/**
+ * @type {FileLoaderItem}
+ * @constructor {FileLoaderItem}
+ * @return {FileLoaderItem}
+ */
+function FileLoaderItem() {
+    /**
+     *
+     * @type {FileSystemDirectoryHandle}
+     */
+    this.dirHandle = null;
+
+    /**
+     *
+     * @type {FileSystemItem[]|null}
+     */
+    this.files = null;
+}
+
+
+/**
+ *
+ * @type {Map<string, FileLoaderItem>}
+ * @private
+ */
+Vue2Loader._fileLoaderCache = new Map();
+/**
+ *
+ * @param callUrl {string|null}
+ * @returns {Promise<FileLoaderItem>}
+ */
+Vue2Loader.getFileLoader = function (callUrl) {
+    if (!callUrl) {
+        callUrl = window.location.pathname;
+    } else {
+        callUrl = new URL(callUrl, window.location.href).pathname;
+    }
+    return new Promise(function (resolve, reject) {
+        if (Vue2Loader._fileLoaderCache[callUrl]) {
+            resolve(Vue2Loader._fileLoaderCache[callUrl])
+            return
+        }
+        let userActionDom = document.createElement('div');
+        userActionDom.innerHTML = '请点击此处，开始选择此文件所在路径<br/>' + callUrl;
+        userActionDom.style.position = 'fixed';
+        userActionDom.style.left = '50%';
+        userActionDom.style.top = '50%';
+        userActionDom.style.transform = 'translate(-50%, -50%)';
+        userActionDom.style.minWidth = '480px';
+        userActionDom.style.width = '60%';
+        userActionDom.style.height = '240px';
+        userActionDom.style.background = 'white';
+        userActionDom.style.textAlign = 'center';
+        userActionDom.style.display = 'flex';
+        userActionDom.style.alignItems = 'center';
+        userActionDom.style.justifyContent = 'center';
+        userActionDom.style.padding = '12px';
+        userActionDom.style.borderRadius = '12px';
+        userActionDom.style.boxShadow = '3px 3px 8px #777';
+        userActionDom.style.color = 'orangered';
+
+        document.body.appendChild(userActionDom);
+        userActionDom.onclick = function () {
+            document.body.removeChild(userActionDom)
+
+            Vue2Loader.getDirectoryHandle()
+                .then(async function (handle) {
+                    let arr = await Vue2Loader.scanFilesMappingNext(handle)
+
+                    let item = new FileLoaderItem();
+                    item.dirHandle = handle;
+                    item.files = arr;
+
+                    Vue2Loader._fileLoaderCache[callUrl] = item;
+                    resolve(item)
+                }).catch(function (err) {
+                reject(err)
+            })
+        }
+
+
+    })
+
+}
+
+/**
+ * fetch url resource in local filesystem
+ * response adaptable `fetch.then`
+ *
+ * @param url {string}
+ * @returns {Promise<Response>}
+ */
+Vue2Loader.fetchFile = function (url) {
+    return Vue2Loader.getFileLoader()
+        .then(async fileLoader => {
+            let arr = fileLoader.files
+
+            let htmlPath = new URL(window.location.href).pathname;
+            let resPath = new URL(url, window.location.href).pathname;
+
+            let rootPath = htmlPath;
+            let idx = htmlPath.lastIndexOf('/');
+            if (idx >= 0) {
+                rootPath = htmlPath.substring(0, idx);
+            }
+
+            resPath = resPath.substring(rootPath.length);
+
+            let fileItems = arr.filter(e => e.path == resPath);
+
+            let contentType = 'text/html';
+
+            if (!fileItems || fileItems.length == 0) {
+                let text = '404, Not Found';
+                return new Response(text, {
+                    status: 404,
+                    statusText: "404 Not Found",
+                    headers: {
+                        'Content-Type': `${contentType}; charset=utf-8`
+                    }
+                });
+            }
+
+            let suffix = ''
+            idx = resPath.lastIndexOf('.');
+            if (idx >= 0) {
+                suffix = resPath.substring(idx).toLowerCase()
+            }
+
+            contentType = Vue2Loader.detectContentTypeBySuffix(suffix)
+
+            if (contentType && contentType.indexOf('charset') < 0) {
+                contentType = `${contentType}; charset=utf-8`;
+            } else {
+                contentType = `application/octet-stream`;
+            }
+
+            let fileItem = fileItems[0]
+            let file = fileItem.file;
+
+            return new Response(fileItem.file, {
+                status: 200,
+                statusText: "OK",
+                headers: {
+                    // 强烈建议加上 Content-Type，方便下游的 .json() 或 .text() 方法正确解析
+                    'Content-Type': contentType,
+                    'Content-Length': file.size
+                }
+            });
+        })
+}
+
+/**
+ *
+ * @param suffix {string}
+ * @returns {string|null}
+ */
+Vue2Loader.detectContentTypeBySuffix = function (suffix) {
+    let contentType = Vue2Loader._SUFFIX_MIME_TYPE_MAP[suffix] || null
+    return contentType
+}
+
+/**
+ * store origin window.fetch
+ *
+ * @type {(input: (RequestInfo | URL), init?: RequestInit) => Promise<Response>}
+ */
+const originFetch = window.fetch;
+
+/**
+ * bind to type
+ *
+ * @type {function((RequestInfo|URL), RequestInit=): Promise<Response>}
+ */
+Vue2Loader.originFetch = originFetch;
+
+/**
+ * adapt for local filesystem
+ *
+ * @param url {string|URL|RequestInfo}
+ * @param config {RequestInit|undefined}
+ * @returns {Promise<Response>}
+ */
+window.fetch = function (url, config) {
+    if (window.location.protocol === 'file:') {
+        return Vue2Loader.fetchFile(url)
+            .catch(err => {
+                return originFetch(url, config)
+            })
+    } else {
+        return originFetch(url, config)
+    }
+}
+
+/**
  *
  * @param header {string} html of head segment
  */
@@ -493,46 +881,52 @@ Vue2Loader.loadObject = function (url) {
  * @return {{template: string, varName: string, header: string, style: string, script: string}}
  */
 Vue2Loader.parseVueTemplate = function (html) {
-    const doc = Vue2Loader.parseHtmlDom(html)
-    let template = doc.querySelector('template')
-    if (template) {
-        template = template.innerHTML
-    } else {
-        template = ''
-    }
-    let className = 'vue-scoped-style-' + Vue2Loader.randomUUID().toLowerCase()
-    let dom = Vue2Loader.parseHtmlDom('<html><head></head><body>' + template + '</body></html>')
-    let body = dom.body
-    let root = body.firstElementChild
-    if (root) {
-        root.className = root.className + ' ' + className
-        template = body.innerHTML
+    let sfc = parseVueSFC(html);
+    let template = sfc.template;
+
+    // 处理 scoped class样式
+    let className = 'vue-scoped-style-' + Vue2Loader.randomUUID().toLowerCase();
+    let rootTagMatched = template.match(/^\s*<[^>]*>/);
+    if (rootTagMatched) {
+        let rootTag = rootTagMatched[0];
+        let leftTemplate = template.substring(rootTag.length);
+
+        let classPart = rootTag.match(/class\s*=\s*('[^']*'|"[^"]*")/);
+        if (classPart) {
+            let matchedAttr = classPart[0];
+
+            let matchedAttrValue = classPart[1];
+
+            let fullClassName = matchedAttrValue;
+            let encloseChar = '"';
+            if (fullClassName.startsWith("'")) {
+                encloseChar = "'";
+            }
+            fullClassName = fullClassName.substring(1, fullClassName.length - 1);
+
+            fullClassName = fullClassName + " " + className;
+
+            let newAttrValue = encloseChar + fullClassName + encloseChar;
+            let newAttr = matchedAttr.replace(matchedAttrValue, newAttrValue);
+            rootTag = rootTag.replace(matchedAttr, newAttr)
+        } else {
+            let encloseChar = '"';
+            let fullClassName = className;
+            let newAttrValue = encloseChar + fullClassName + encloseChar;
+            let newAttr = "class=" + newAttrValue;
+            rootTag = rootTag.replace(/>$/, ' ' + newAttr + '>');
+        }
+        template = rootTag + leftTemplate;
     }
 
-    let script = doc.querySelector('script')
-    if (script) {
-        script = script.innerHTML
-    } else {
-        script = ''
-    }
+    let script = sfc.script;
     let varName = 'vue_conf_' + Vue2Loader.randomUUID()
     script = script.replace(/export\s+default\s+\{/, 'let ' + varName + ' = {')
 
+    let style = sfc.style;
+    style = style.replace('.--this', ('.' + className))
 
-    let style = doc.querySelector('style')
-    if (style) {
-        style = style.innerHTML
-    } else {
-        style = ''
-    }
-    style = style.split('.--this').join(('.' + className))
-
-    let header = doc.querySelector('header')
-    if (header) {
-        header = header.innerHTML
-    } else {
-        header = ''
-    }
+    let header = sfc.header;
 
     return {
         template: template,
@@ -554,11 +948,8 @@ Vue2Loader.loadVueOptions = function (url) {
         Vue2Loader.fetchUrl(url)
             .then(function (html) {
                 let vueTemplate = Vue2Loader.parseVueTemplate(html)
-                let appDom = Vue2Loader.domGetOrCreate('vue_component_' + appId, 'div', document.body);
-                appDom.style.display = 'none'
-                appDom.style.height = '0px'
-                appDom.style.width = '0px'
-                Vue2Loader.domSetInnerHtml(appDom, vueTemplate.template)
+                // 挂载到全局变量上
+                window['vue_component_' + appId] = vueTemplate.template;
 
 
                 let styleDom = Vue2Loader.domGetOrCreate('vue_component_style_' + appId, 'style', document.body);
@@ -577,7 +968,6 @@ Vue2Loader.loadVueOptions = function (url) {
                 let spyCompSetupCall = function () {
                     if (window[vueCompVarName]) {
                         Vue2Loader.domRemove(scriptDom)
-                        Vue2Loader.domRemove(appDom)
                         resolve(window[vueCompVarName])
                         setTimeout(function () {
                             delete window[vueCompVarName]
@@ -608,10 +998,10 @@ Vue2Loader.loadVueOptions = function (url) {
 Vue2Loader.evalVueComponent = function (vueOptions,
                                         templateElemId,
                                         vueCompVarName) {
-    let templateDom = document.querySelector('#vue_component_' + templateElemId)
-    if (templateDom) {
-        vueOptions.template = templateDom.innerHTML
-    }
+    // 从挂载变量上获取模版
+    vueOptions.template = window['vue_component_' + templateElemId];
+    delete window['vue_component_' + templateElemId];
+
     window[vueCompVarName] = vueOptions
 }
 
@@ -1015,4 +1405,204 @@ Vue2Loader.resolveVueDependency = function (vueOptions, baseHref) {
             resolve(vueOptions)
         })
     })
+}
+
+/**
+ * suffix -> mime-type/content-type mapping
+ *
+ * @type {Map<string,string>}
+ * @private
+ */
+Vue2Loader._SUFFIX_MIME_TYPE_MAP=
+{
+    //{后缀名，    MIME类型}
+    ".txt": "text/plain",
+    ".text": "text/plain",
+    ".htm": "text/html",
+    ".html": "text/html",
+    ".stm": "text/html",
+    ".xhtml": "application/xhtml+xml",
+    ".js": "text/javascript",
+    ".css": "text/css",
+    ".xml": "text/xml",
+    ".json": "application/json",
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".xls": "application/vnd.ms-excel",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".wps": "application/vnd.ms-works",
+    ".vsd": "application/vnd.visio",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".vue": "text/plain",
+    ".c": "text/plain",
+    ".cpp": "text/plain",
+    ".h": "text/plain",
+    ".hpp": "text/plain",
+    ".phps": "text/text",
+    ".java": "text/x-java",
+    ".py": "text/plain",
+    ".go": "text/plain",
+    ".sh": "text/plain",
+    ".bat": "text/plain",
+    ".csv": "text/csv",
+    ".dot": "application/msword",
+    ".pot": "application/vnd.ms-powerpoint",
+    ".pps": "application/vnd.ms-powerpoint",
+    ".xlt": "application/vnd.ms-excel",
+    ".xlw": "application/vnd.ms-excel",
+    ".ppsx": "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+    ".potx": "application/vnd.openxmlformats-officedocument.presentationml.template",
+    ".xltx": "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+    ".conf": "text/plain",
+    ".log": "text/plain",
+    ".asm": "text/plain",
+    ".prop": "text/plain",
+    ".rc": "text/plain",
+    ".ini": "text/plain",
+    ".dotx": "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".ico": "image/ico",
+    ".wbmp": "image/vnd.wap.wbmp",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+    ".psd": "image/x-photoshop",
+    ".jpe": "image/jpeg",
+    ".cur": "image/ico",
+    ".svg": "image/svg+xml",
+    ".svgz": "image/svg+xml",
+    ".ttf": "font/ttf",
+    ".woff": "font/woff",
+    ".otf": "font/otf",
+    ".woff2": "font/woff2",
+    ".aac": "audio/aac",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".oga": "audio/ogg",
+    ".m4a": "audio/mpeg",
+    ".mp2": "audio/mpeg",
+    ".mpega": "audio/mpeg",
+    ".mpga": "audio/mpeg",
+    ".m3u": "audio/mpegurl",
+    ".flac": "application/x-flac",
+    ".amr": "audio/amr",
+    ".ogg": "application/ogg",
+    ".ogx": "application/ogg",
+    ".mp4": "video/mp4",
+    ".avi": "video/x-msvideo",
+    ".mpeg": "video/mpeg",
+    ".mov": "video/quicktime",
+    ".rmvb": "video/vdn.rn-realvideo",
+    ".flv": "video/x-flv",
+    ".mkv": "video/x-matroska",
+    ".mpg4": "video/mp4",
+    ".m4b": "audio/mp4a-latm",
+    ".m4p": "audio/mp4a-latm",
+    ".m4u": "video/vnd.mpegurl",
+    ".qt": "video/quicktime",
+    ".vob": "video/mpeg",
+    ".ogv": "video/ogg",
+    ".wmv": "video/x-ms-wmv",
+    ".movie": "video/x-sgi-movie",
+    ".fli": "video/fli",
+    ".m4v": "video/m4v",
+    ".3g2": "video/3gpp",
+    ".3gp": "video/3gpp",
+    ".3gpp": "video/3gpp",
+    ".mpa": "video/mpeg",
+    ".mpe": "video/mpeg",
+    ".mpg": "video/mpeg",
+    ".mpv2": "video/mpeg",
+    ".asf": "video/x-ms-asf",
+    ".mv": "video/x-sgi-movie",
+    ".m13": "application/x-msmediaview",
+    ".m14": "application/x-msmediaview",
+    ".mvb": "application/x-msmediaview",
+    ".wmf": "application/x-msmetafile",
+    ".7z": "application/x-7z-compressed",
+    ".bz": "application/x-bzip",
+    ".bz2": "application/x-bzip2",
+    ".z": "application/x-compress",
+    ".gtar": "application/x-gtar",
+    ".taz": "application/x-gtar",
+    ".tgz": "application/x-gtar",
+    ".gz": "application/x-gzip",
+    ".tar": "application/x-tar",
+    ".zip": "application/zip",
+    ".jar": "application/java-archive",
+    ".rar": "application/rar",
+    ".apk": "application/vnd.android.package-archive",
+    ".exe": "application/octet-stream",
+    ".class": "application/octet-stream",
+    ".cod": "image/cis-cod",
+    ".ief": "image/ief",
+    ".pcx": "image/pcx",
+    ".jfif": "image/pipeg",
+    ".djv": "image/vnd.djvu",
+    ".djvu": "image/vnd.djvu",
+    ".ras": "image/x-cmu-raster",
+    ".cmx": "image/x-cmx",
+    ".cdr": "image/x-coreldraw",
+    ".pat": "image/x-coreldrawpattern",
+    ".cdt": "image/x-coreldrawtemplate",
+    ".art": "image/x-jg",
+    ".jng": "image/x-jng",
+    ".pnm": "image/x-portable-anymap",
+    ".pbm": "image/x-portable-bitmap",
+    ".pgm": "image/x-portable-graymap",
+    ".ppm": "image/x-portable-pixmap",
+    ".rgb": "image/x-rgb",
+    ".xbm": "image/x-xbitmap",
+    ".xpm": "image/x-xpixmap",
+    ".xwd": "image/x-xwindowdump",
+    ".au": "audio/basic",
+    ".snd": "audio/basic",
+    ".mid": "audio/mid",
+    ".rmi": "audio/mid",
+    ".kar": "audio/midi",
+    ".midi": "audio/midi",
+    ".xmf": "audio/midi",
+    ".mxmf": "audio/mobile-xmf",
+    ".sid": "audio/prs.sid",
+    ".weba": "audio/webm",
+    ".aif": "audio/x-aiff",
+    ".aifc": "audio/x-aiff",
+    ".aiff": "audio/x-aiff",
+    ".gsm": "audio/x-gsm",
+    ".wax": "audio/x-ms-wax",
+    ".wma": "audio/x-ms-wma",
+    ".ram": "audio/x-pn-realaudio",
+    ".rm": "audio/x-pn-realaudio",
+    ".qcp": "audio/x-qcp",
+    ".ra": "audio/x-realaudio",
+    ".pls": "audio/x-scpls",
+    ".sd2": "audio/x-sd2",
+    ".dl": "video/dl",
+    ".dif": "video/dv",
+    ".dv": "video/dv",
+    ".mxu": "video/vnd.mpegurl",
+    ".webm": "video/webm",
+    ".lsf": "video/x-la-asf",
+    ".lsx": "video/x-la-asf",
+    ".mng": "video/x-mng",
+    ".asr": "video/x-ms-asf",
+    ".asx": "video/x-ms-asf",
+    ".wm": "video/x-ms-wm",
+    ".wmx": "video/x-ms-wmx",
+    ".wvx": "video/x-ms-wvx",
+    ".mjs": "text/javascript",
+    ".cls": "text/x-tex",
+    ".diff": "text/plain",
+    ".xla": "application/vnd.ms-excel",
+    ".xlc": "application/vnd.ms-excel",
+    ".xlm": "application/vnd.ms-excel",
+    ".eot": "application/vnd.ms-fontobject",
+    //unknown type to binary common mime
+    "": "application/octet-stream"
 }
