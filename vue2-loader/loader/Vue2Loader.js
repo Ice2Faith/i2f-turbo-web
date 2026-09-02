@@ -673,8 +673,20 @@ Vue2Loader.getFileLoader = function (callUrl) {
             resolve(Vue2Loader._fileLoaderCache[callUrl])
             return
         }
+
+        let sysPath=callUrl;
+        if(/^\/[a-zA-Z]:\//.test(sysPath)){
+            sysPath=sysPath.substring(1);
+        }
+        if(!sysPath.endsWith('/')){
+            let idx=sysPath.lastIndexOf('/');
+            if(idx>=0){
+                sysPath=sysPath.substring(0,idx);
+            }
+        }
+
         let userActionDom = document.createElement('div');
-        userActionDom.innerHTML = '请点击此处，开始选择此文件所在路径<br/>' + callUrl;
+        userActionDom.innerHTML = '请点击此处，复制路径，开始选择此文件所在路径<br/>' + callUrl;
         userActionDom.style.position = 'fixed';
         userActionDom.style.left = '50%';
         userActionDom.style.top = '50%';
@@ -696,6 +708,8 @@ Vue2Loader.getFileLoader = function (callUrl) {
         userActionDom.onclick = function () {
             document.body.removeChild(userActionDom)
 
+            Vue2Loader.copyToClipboard(sysPath);
+
             Vue2Loader.getDirectoryHandle()
                 .then(async function (handle) {
                     let arr = await Vue2Loader.scanFilesMappingNext(handle)
@@ -714,6 +728,103 @@ Vue2Loader.getFileLoader = function (callUrl) {
 
     })
 
+}
+
+/**
+ * notify counter
+ *
+ * @type {number}
+ * @private
+ */
+Vue2Loader._notifyCount=0;
+
+/**
+ * show an notify popup
+ *
+ * @param content {string}
+ * @param level {'primary'|'info'|'warning'|'danger'|'success'|null|undefined}
+ */
+Vue2Loader.notify=function(content,level){
+    if(!level){
+        level='primary'
+    }
+    let levelColor='dodgerblue'
+    if(level=='primary'){
+        levelColor='dodgerblue'
+    }else if(level=='info'){
+        levelColor='#777'
+    }else if(level=='warning'){
+        levelColor='orange'
+    }else if(level=='danger'){
+        levelColor='red'
+    }else if(level=='success'){
+        levelColor='limegreen'
+    }
+    let notifyDom = document.createElement('div');
+    notifyDom.innerHTML = content;
+    notifyDom.style.position = 'fixed';
+    notifyDom.style.right = '-5%';
+    notifyDom.style.top = Math.min(90,5*Math.max(1,Vue2Loader._notifyCount+1))+'%';
+    notifyDom.style.minWidth = '120px';
+    notifyDom.style.minHeight = '60px';
+    notifyDom.style.background = 'white';
+    notifyDom.style.textAlign = 'center';
+    notifyDom.style.display='flex';
+    notifyDom.style.alignItems = 'center';
+    notifyDom.style.justifyContent = 'center';
+    notifyDom.style.padding = '8px';
+    notifyDom.style.borderRadius = '8px';
+    notifyDom.style.boxShadow = `3px 3px 8px ${levelColor}`;
+    notifyDom.style.color = levelColor;
+    notifyDom.style.transition='right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
+
+    Vue2Loader._notifyCount=Math.max(0,Vue2Loader._notifyCount)+1;
+    document.body.appendChild(notifyDom);
+
+    requestAnimationFrame(() => {
+        notifyDom.style.right = '5%';
+    });
+
+    setTimeout(function(){
+        document.body.removeChild(notifyDom);
+        Vue2Loader._notifyCount--;
+    },5000)
+}
+
+Vue2Loader.notify.info=function(content){
+    Vue2Loader.notify(content,'info')
+}
+
+Vue2Loader.notify.warning=function(content){
+    Vue2Loader.notify(content,'warning')
+}
+
+Vue2Loader.notify.danger=function(content){
+    Vue2Loader.notify(content,'danger')
+}
+
+Vue2Loader.notify.success=function(content){
+    Vue2Loader.notify(content,'success')
+}
+
+Vue2Loader.notify.primary=function(content){
+    Vue2Loader.notify(content,'primary')
+}
+
+Vue2Loader.copyToClipboard= function (text) {
+    let ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        Vue2Loader.notify.success('复制成功')
+    } catch (e) {
+        Vue2Loader.notify.warning('复制失败')
+    }
+    document.body.removeChild(ta);
 }
 
 /**
@@ -1414,195 +1525,195 @@ Vue2Loader.resolveVueDependency = function (vueOptions, baseHref) {
  * @private
  */
 Vue2Loader._SUFFIX_MIME_TYPE_MAP=
-{
-    //{后缀名，    MIME类型}
-    ".txt": "text/plain",
-    ".text": "text/plain",
-    ".htm": "text/html",
-    ".html": "text/html",
-    ".stm": "text/html",
-    ".xhtml": "application/xhtml+xml",
-    ".js": "text/javascript",
-    ".css": "text/css",
-    ".xml": "text/xml",
-    ".json": "application/json",
-    ".pdf": "application/pdf",
-    ".doc": "application/msword",
-    ".xls": "application/vnd.ms-excel",
-    ".ppt": "application/vnd.ms-powerpoint",
-    ".wps": "application/vnd.ms-works",
-    ".vsd": "application/vnd.visio",
-    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ".vue": "text/plain",
-    ".c": "text/plain",
-    ".cpp": "text/plain",
-    ".h": "text/plain",
-    ".hpp": "text/plain",
-    ".phps": "text/text",
-    ".java": "text/x-java",
-    ".py": "text/plain",
-    ".go": "text/plain",
-    ".sh": "text/plain",
-    ".bat": "text/plain",
-    ".csv": "text/csv",
-    ".dot": "application/msword",
-    ".pot": "application/vnd.ms-powerpoint",
-    ".pps": "application/vnd.ms-powerpoint",
-    ".xlt": "application/vnd.ms-excel",
-    ".xlw": "application/vnd.ms-excel",
-    ".ppsx": "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
-    ".potx": "application/vnd.openxmlformats-officedocument.presentationml.template",
-    ".xltx": "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
-    ".conf": "text/plain",
-    ".log": "text/plain",
-    ".asm": "text/plain",
-    ".prop": "text/plain",
-    ".rc": "text/plain",
-    ".ini": "text/plain",
-    ".dotx": "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".gif": "image/gif",
-    ".ico": "image/ico",
-    ".wbmp": "image/vnd.wap.wbmp",
-    ".webp": "image/webp",
-    ".bmp": "image/bmp",
-    ".tif": "image/tiff",
-    ".tiff": "image/tiff",
-    ".psd": "image/x-photoshop",
-    ".jpe": "image/jpeg",
-    ".cur": "image/ico",
-    ".svg": "image/svg+xml",
-    ".svgz": "image/svg+xml",
-    ".ttf": "font/ttf",
-    ".woff": "font/woff",
-    ".otf": "font/otf",
-    ".woff2": "font/woff2",
-    ".aac": "audio/aac",
-    ".mp3": "audio/mpeg",
-    ".wav": "audio/wav",
-    ".oga": "audio/ogg",
-    ".m4a": "audio/mpeg",
-    ".mp2": "audio/mpeg",
-    ".mpega": "audio/mpeg",
-    ".mpga": "audio/mpeg",
-    ".m3u": "audio/mpegurl",
-    ".flac": "application/x-flac",
-    ".amr": "audio/amr",
-    ".ogg": "application/ogg",
-    ".ogx": "application/ogg",
-    ".mp4": "video/mp4",
-    ".avi": "video/x-msvideo",
-    ".mpeg": "video/mpeg",
-    ".mov": "video/quicktime",
-    ".rmvb": "video/vdn.rn-realvideo",
-    ".flv": "video/x-flv",
-    ".mkv": "video/x-matroska",
-    ".mpg4": "video/mp4",
-    ".m4b": "audio/mp4a-latm",
-    ".m4p": "audio/mp4a-latm",
-    ".m4u": "video/vnd.mpegurl",
-    ".qt": "video/quicktime",
-    ".vob": "video/mpeg",
-    ".ogv": "video/ogg",
-    ".wmv": "video/x-ms-wmv",
-    ".movie": "video/x-sgi-movie",
-    ".fli": "video/fli",
-    ".m4v": "video/m4v",
-    ".3g2": "video/3gpp",
-    ".3gp": "video/3gpp",
-    ".3gpp": "video/3gpp",
-    ".mpa": "video/mpeg",
-    ".mpe": "video/mpeg",
-    ".mpg": "video/mpeg",
-    ".mpv2": "video/mpeg",
-    ".asf": "video/x-ms-asf",
-    ".mv": "video/x-sgi-movie",
-    ".m13": "application/x-msmediaview",
-    ".m14": "application/x-msmediaview",
-    ".mvb": "application/x-msmediaview",
-    ".wmf": "application/x-msmetafile",
-    ".7z": "application/x-7z-compressed",
-    ".bz": "application/x-bzip",
-    ".bz2": "application/x-bzip2",
-    ".z": "application/x-compress",
-    ".gtar": "application/x-gtar",
-    ".taz": "application/x-gtar",
-    ".tgz": "application/x-gtar",
-    ".gz": "application/x-gzip",
-    ".tar": "application/x-tar",
-    ".zip": "application/zip",
-    ".jar": "application/java-archive",
-    ".rar": "application/rar",
-    ".apk": "application/vnd.android.package-archive",
-    ".exe": "application/octet-stream",
-    ".class": "application/octet-stream",
-    ".cod": "image/cis-cod",
-    ".ief": "image/ief",
-    ".pcx": "image/pcx",
-    ".jfif": "image/pipeg",
-    ".djv": "image/vnd.djvu",
-    ".djvu": "image/vnd.djvu",
-    ".ras": "image/x-cmu-raster",
-    ".cmx": "image/x-cmx",
-    ".cdr": "image/x-coreldraw",
-    ".pat": "image/x-coreldrawpattern",
-    ".cdt": "image/x-coreldrawtemplate",
-    ".art": "image/x-jg",
-    ".jng": "image/x-jng",
-    ".pnm": "image/x-portable-anymap",
-    ".pbm": "image/x-portable-bitmap",
-    ".pgm": "image/x-portable-graymap",
-    ".ppm": "image/x-portable-pixmap",
-    ".rgb": "image/x-rgb",
-    ".xbm": "image/x-xbitmap",
-    ".xpm": "image/x-xpixmap",
-    ".xwd": "image/x-xwindowdump",
-    ".au": "audio/basic",
-    ".snd": "audio/basic",
-    ".mid": "audio/mid",
-    ".rmi": "audio/mid",
-    ".kar": "audio/midi",
-    ".midi": "audio/midi",
-    ".xmf": "audio/midi",
-    ".mxmf": "audio/mobile-xmf",
-    ".sid": "audio/prs.sid",
-    ".weba": "audio/webm",
-    ".aif": "audio/x-aiff",
-    ".aifc": "audio/x-aiff",
-    ".aiff": "audio/x-aiff",
-    ".gsm": "audio/x-gsm",
-    ".wax": "audio/x-ms-wax",
-    ".wma": "audio/x-ms-wma",
-    ".ram": "audio/x-pn-realaudio",
-    ".rm": "audio/x-pn-realaudio",
-    ".qcp": "audio/x-qcp",
-    ".ra": "audio/x-realaudio",
-    ".pls": "audio/x-scpls",
-    ".sd2": "audio/x-sd2",
-    ".dl": "video/dl",
-    ".dif": "video/dv",
-    ".dv": "video/dv",
-    ".mxu": "video/vnd.mpegurl",
-    ".webm": "video/webm",
-    ".lsf": "video/x-la-asf",
-    ".lsx": "video/x-la-asf",
-    ".mng": "video/x-mng",
-    ".asr": "video/x-ms-asf",
-    ".asx": "video/x-ms-asf",
-    ".wm": "video/x-ms-wm",
-    ".wmx": "video/x-ms-wmx",
-    ".wvx": "video/x-ms-wvx",
-    ".mjs": "text/javascript",
-    ".cls": "text/x-tex",
-    ".diff": "text/plain",
-    ".xla": "application/vnd.ms-excel",
-    ".xlc": "application/vnd.ms-excel",
-    ".xlm": "application/vnd.ms-excel",
-    ".eot": "application/vnd.ms-fontobject",
-    //unknown type to binary common mime
-    "": "application/octet-stream"
-}
+    {
+        //{后缀名，    MIME类型}
+        ".txt": "text/plain",
+        ".text": "text/plain",
+        ".htm": "text/html",
+        ".html": "text/html",
+        ".stm": "text/html",
+        ".xhtml": "application/xhtml+xml",
+        ".js": "text/javascript",
+        ".css": "text/css",
+        ".xml": "text/xml",
+        ".json": "application/json",
+        ".pdf": "application/pdf",
+        ".doc": "application/msword",
+        ".xls": "application/vnd.ms-excel",
+        ".ppt": "application/vnd.ms-powerpoint",
+        ".wps": "application/vnd.ms-works",
+        ".vsd": "application/vnd.visio",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".vue": "text/plain",
+        ".c": "text/plain",
+        ".cpp": "text/plain",
+        ".h": "text/plain",
+        ".hpp": "text/plain",
+        ".phps": "text/text",
+        ".java": "text/x-java",
+        ".py": "text/plain",
+        ".go": "text/plain",
+        ".sh": "text/plain",
+        ".bat": "text/plain",
+        ".csv": "text/csv",
+        ".dot": "application/msword",
+        ".pot": "application/vnd.ms-powerpoint",
+        ".pps": "application/vnd.ms-powerpoint",
+        ".xlt": "application/vnd.ms-excel",
+        ".xlw": "application/vnd.ms-excel",
+        ".ppsx": "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+        ".potx": "application/vnd.openxmlformats-officedocument.presentationml.template",
+        ".xltx": "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+        ".conf": "text/plain",
+        ".log": "text/plain",
+        ".asm": "text/plain",
+        ".prop": "text/plain",
+        ".rc": "text/plain",
+        ".ini": "text/plain",
+        ".dotx": "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".ico": "image/ico",
+        ".wbmp": "image/vnd.wap.wbmp",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+        ".tif": "image/tiff",
+        ".tiff": "image/tiff",
+        ".psd": "image/x-photoshop",
+        ".jpe": "image/jpeg",
+        ".cur": "image/ico",
+        ".svg": "image/svg+xml",
+        ".svgz": "image/svg+xml",
+        ".ttf": "font/ttf",
+        ".woff": "font/woff",
+        ".otf": "font/otf",
+        ".woff2": "font/woff2",
+        ".aac": "audio/aac",
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".oga": "audio/ogg",
+        ".m4a": "audio/mpeg",
+        ".mp2": "audio/mpeg",
+        ".mpega": "audio/mpeg",
+        ".mpga": "audio/mpeg",
+        ".m3u": "audio/mpegurl",
+        ".flac": "application/x-flac",
+        ".amr": "audio/amr",
+        ".ogg": "application/ogg",
+        ".ogx": "application/ogg",
+        ".mp4": "video/mp4",
+        ".avi": "video/x-msvideo",
+        ".mpeg": "video/mpeg",
+        ".mov": "video/quicktime",
+        ".rmvb": "video/vdn.rn-realvideo",
+        ".flv": "video/x-flv",
+        ".mkv": "video/x-matroska",
+        ".mpg4": "video/mp4",
+        ".m4b": "audio/mp4a-latm",
+        ".m4p": "audio/mp4a-latm",
+        ".m4u": "video/vnd.mpegurl",
+        ".qt": "video/quicktime",
+        ".vob": "video/mpeg",
+        ".ogv": "video/ogg",
+        ".wmv": "video/x-ms-wmv",
+        ".movie": "video/x-sgi-movie",
+        ".fli": "video/fli",
+        ".m4v": "video/m4v",
+        ".3g2": "video/3gpp",
+        ".3gp": "video/3gpp",
+        ".3gpp": "video/3gpp",
+        ".mpa": "video/mpeg",
+        ".mpe": "video/mpeg",
+        ".mpg": "video/mpeg",
+        ".mpv2": "video/mpeg",
+        ".asf": "video/x-ms-asf",
+        ".mv": "video/x-sgi-movie",
+        ".m13": "application/x-msmediaview",
+        ".m14": "application/x-msmediaview",
+        ".mvb": "application/x-msmediaview",
+        ".wmf": "application/x-msmetafile",
+        ".7z": "application/x-7z-compressed",
+        ".bz": "application/x-bzip",
+        ".bz2": "application/x-bzip2",
+        ".z": "application/x-compress",
+        ".gtar": "application/x-gtar",
+        ".taz": "application/x-gtar",
+        ".tgz": "application/x-gtar",
+        ".gz": "application/x-gzip",
+        ".tar": "application/x-tar",
+        ".zip": "application/zip",
+        ".jar": "application/java-archive",
+        ".rar": "application/rar",
+        ".apk": "application/vnd.android.package-archive",
+        ".exe": "application/octet-stream",
+        ".class": "application/octet-stream",
+        ".cod": "image/cis-cod",
+        ".ief": "image/ief",
+        ".pcx": "image/pcx",
+        ".jfif": "image/pipeg",
+        ".djv": "image/vnd.djvu",
+        ".djvu": "image/vnd.djvu",
+        ".ras": "image/x-cmu-raster",
+        ".cmx": "image/x-cmx",
+        ".cdr": "image/x-coreldraw",
+        ".pat": "image/x-coreldrawpattern",
+        ".cdt": "image/x-coreldrawtemplate",
+        ".art": "image/x-jg",
+        ".jng": "image/x-jng",
+        ".pnm": "image/x-portable-anymap",
+        ".pbm": "image/x-portable-bitmap",
+        ".pgm": "image/x-portable-graymap",
+        ".ppm": "image/x-portable-pixmap",
+        ".rgb": "image/x-rgb",
+        ".xbm": "image/x-xbitmap",
+        ".xpm": "image/x-xpixmap",
+        ".xwd": "image/x-xwindowdump",
+        ".au": "audio/basic",
+        ".snd": "audio/basic",
+        ".mid": "audio/mid",
+        ".rmi": "audio/mid",
+        ".kar": "audio/midi",
+        ".midi": "audio/midi",
+        ".xmf": "audio/midi",
+        ".mxmf": "audio/mobile-xmf",
+        ".sid": "audio/prs.sid",
+        ".weba": "audio/webm",
+        ".aif": "audio/x-aiff",
+        ".aifc": "audio/x-aiff",
+        ".aiff": "audio/x-aiff",
+        ".gsm": "audio/x-gsm",
+        ".wax": "audio/x-ms-wax",
+        ".wma": "audio/x-ms-wma",
+        ".ram": "audio/x-pn-realaudio",
+        ".rm": "audio/x-pn-realaudio",
+        ".qcp": "audio/x-qcp",
+        ".ra": "audio/x-realaudio",
+        ".pls": "audio/x-scpls",
+        ".sd2": "audio/x-sd2",
+        ".dl": "video/dl",
+        ".dif": "video/dv",
+        ".dv": "video/dv",
+        ".mxu": "video/vnd.mpegurl",
+        ".webm": "video/webm",
+        ".lsf": "video/x-la-asf",
+        ".lsx": "video/x-la-asf",
+        ".mng": "video/x-mng",
+        ".asr": "video/x-ms-asf",
+        ".asx": "video/x-ms-asf",
+        ".wm": "video/x-ms-wm",
+        ".wmx": "video/x-ms-wmx",
+        ".wvx": "video/x-ms-wvx",
+        ".mjs": "text/javascript",
+        ".cls": "text/x-tex",
+        ".diff": "text/plain",
+        ".xla": "application/vnd.ms-excel",
+        ".xlc": "application/vnd.ms-excel",
+        ".xlm": "application/vnd.ms-excel",
+        ".eot": "application/vnd.ms-fontobject",
+        //unknown type to binary common mime
+        "": "application/octet-stream"
+    }
