@@ -103,7 +103,7 @@ Vue2Loader.parseHtmlDom = function (html) {
  * @return {string}
  */
 Vue2Loader.randomUUID = function () {
-    let ret = ''
+    let ret = ''+new Date().getTime().toString(16).toUpperCase()
     let codes = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     for (let i = 0; i < 32; i++) {
         let num = Math.floor(Math.random() * codes.length)
@@ -224,6 +224,26 @@ Vue2Loader.fetchXhr = function (url, options) {
  * @return {Promise<string>}
  */
 Vue2Loader.fetchIframe = function (url) {
+    let jsIframeTxt = false;
+    let pathname = new URL(url, window.location.href).pathname;
+    if (pathname.endsWith('.iframe.txt')) {
+        pathname = pathname.substring(0, pathname.length - '.iframe.txt'.length);
+        jsIframeTxt = true;
+    }
+    let suffix = ''
+    let idx = pathname.lastIndexOf('.');
+    if (idx >= 0) {
+        suffix = pathname.substring(idx).toLowerCase()
+    }
+
+    let contentType = Vue2Loader.detectContentTypeBySuffix(suffix)
+
+    if (contentType && contentType.indexOf('charset') < 0) {
+        contentType = `${contentType}; charset=utf-8`;
+    } else {
+        contentType = `application/octet-stream`;
+    }
+
     return new Promise(function (resolve, reject) {
         let frameId = 'vue_frame_' + Vue2Loader.randomUUID().toLocaleLowerCase()
         let frameDom = Vue2Loader.domGetOrCreate(frameId, 'iframe', document.body)
@@ -235,15 +255,15 @@ Vue2Loader.fetchIframe = function (url) {
                 let frameDoc = frameDom.contentDocument || frameDom.contentWindow.document
                 let pre = frameDoc.querySelector('body pre')
                 let text = pre.innerText
-                resolve({
-                    ok: true,
-                    json: function () {
-                        return Promise.resolve(text)
-                    },
-                    text: function () {
-                        return Promise.resolve(text)
-                    },
-                })
+
+                return new Response(text, {
+                    status: 200,
+                    statusText: "OK",
+                    headers: {
+                        // 强烈建议加上 Content-Type，方便下游的 .json() 或 .text() 方法正确解析
+                        'Content-Type': contentType
+                    }
+                });
             } catch (e) {
                 reject(e)
             }
@@ -267,6 +287,16 @@ Vue2Loader.fetchIframe = function (url) {
     })
 }
 
+
+Vue2Loader._jsonpResources=[]
+
+window.jsonp_callback=function(response){
+    Vue2Loader._jsonpResources.push(response)
+    setTimeout(()=>{
+        Vue2Loader._jsonpResources.splice(0,1)
+    },30000)
+}
+
 /**
  * load an url content by jsonp
  * @param url {string}
@@ -277,21 +307,96 @@ Vue2Loader.fetchJsonp = function (url, options) {
     if (!options) {
         options = {}
     }
+
+    let isJsonpJs = false;
+    let pathname = new URL(url, window.location.href).pathname;
+    if (pathname.endsWith('.jsonp.js')) {
+        pathname = pathname.substring(0, pathname.length - '.jsonp.js'.length);
+        isJsonpJs = true;
+    }
+    let suffix = ''
+    let idx = pathname.lastIndexOf('.');
+    if (idx >= 0) {
+        suffix = pathname.substring(idx).toLowerCase()
+    }
+
+    let contentType = Vue2Loader.detectContentTypeBySuffix(suffix)
+
+    if (contentType && contentType.indexOf('charset') < 0) {
+        contentType = `${contentType}; charset=utf-8`;
+    } else {
+        contentType = `application/octet-stream`;
+    }
     return new Promise(function (resolve, reject) {
         let callbackFunctionName = options.callbackFunctionName || 'jsonp_callback'
         if (options.randomCallbackFunctionName) {
             callbackFunctionName = callbackFunctionName + '_' + Vue2Loader.randomUUID()
         }
+        if (callbackFunctionName == 'jsonp_callback' && isJsonpJs) {
+            let maxTryTime=30000;
+            let sleepTs=30;
+            let tryCount=maxTryTime/sleepTs;
+            let urlPath=new URL(url,window.location.href).pathname;
+            let tryTask=()=>{
+                for (let i = 0; i < Vue2Loader._jsonpResources.length; i++) {
+                    let item=Vue2Loader._jsonpResources[i]
+                    if(urlPath.endsWith(item.path)){
+                        let payload=item.payload;
+                        if (typeof payload != 'string') {
+                            try {
+                                payload = JSON.stringify(payload)
+                            } catch (e) {
+                                payload = payload + '';
+                            }
+                        }
+                        resolve(new Response(payload, {
+                            status: 200,
+                            statusText: "OK",
+                            headers: {
+                                // 强烈建议加上 Content-Type，方便下游的 .json() 或 .text() 方法正确解析
+                                'Content-Type': contentType
+                            }
+                        }))
+                        return
+                    }
+                }
+                tryCount--;
+                if(tryCount>0){
+                    setTimeout(()=>{
+                        tryTask()
+                    },30)
+                }else{
+                    let text = '404, Jsonp Not Found';
+                    reject(new Response(text, {
+                        status: 404,
+                        statusText: "404 Jsonp Not Found",
+                        headers: {
+                            'Content-Type': `text/html; charset=utf-8`
+                        }
+                    }))
+                }
+            }
+            tryTask()
+        }else {
         window[callbackFunctionName] = function (response) {
-            resolve({
-                ok: true,
-                json: function () {
-                    return Promise.resolve(response)
-                },
-                text: function () {
-                    return Promise.resolve(response)
-                },
-            })
+                let payload = response;
+                if (typeof payload != 'string') {
+                    try {
+                        payload = JSON.stringify(payload)
+                    } catch (e) {
+                        payload = payload + '';
+                    }
+                }
+                resolve(new Response(payload, {
+                    status: 200,
+                    statusText: "OK",
+                    headers: {
+                        // 强烈建议加上 Content-Type，方便下游的 .json() 或 .text() 方法正确解析
+                        'Content-Type': contentType
+                    }
+                }))
+
+        }
         }
 
         let src = url + ''
@@ -317,6 +422,7 @@ Vue2Loader.fetchJsonp = function (url, options) {
 
         scriptDom.onerror = function (event, source, lineno, colno, error) {
             reject({
+                message: '400, Jsonp Error',
                 event: event,
                 source: source,
                 lineno: lineno,
@@ -360,19 +466,6 @@ Vue2Loader.fetchUrl = function (url) {
         ok: false,
         value: undefined
     })
-        .catch(function (err) {
-            if (new URL(url, window.location.href).protocol === 'file:') {
-                return Vue2Loader.fetchFile(url)
-                    .then(function (res) {
-                        return res.text()
-                    })
-            } else {
-                return Promise.reject({
-                    ok: false,
-                    value: undefined
-                })
-            }
-        })
         .catch(function (err) {
             // use fetch
             let href = url
@@ -529,6 +622,26 @@ Vue2Loader.fetchUrl = function (url) {
                     }
                 })
         }).catch(function (err) {
+            if (new URL(url, window.location.href).protocol === 'file:') {
+                return Vue2Loader.fetchFile(url)
+                    .then(function (res) {
+                        if (res.status != 200) {
+                            return res.text().then(function (text) {
+                                return Promise.reject({
+                                    ok: false,
+                                    value: text
+                                })
+                            })
+                        }
+                        return res.text()
+                    })
+            } else {
+                return Promise.reject({
+                    ok: false,
+                    value: undefined
+                })
+            }
+        }).catch(function (err) {
             // process possible value
             if (err.ok === true) {
                 return Promise.resolve(err.value)
@@ -657,17 +770,69 @@ function FileLoaderItem() {
  * @private
  */
 Vue2Loader._fileLoaderCache = new Map();
-/**
- *
- * @param callUrl {string|null}
- * @returns {Promise<FileLoaderItem>}
- */
+
+Vue2Loader._fileLoaderQueue={}
+
 Vue2Loader.getFileLoader = function (callUrl) {
     if (!callUrl) {
         callUrl = window.location.pathname;
     } else {
         callUrl = new URL(callUrl, window.location.href).pathname;
     }
+    return new Promise((resolve,reject)=>{
+        let promise={
+            resolve: resolve,
+            reject: reject
+        }
+        Vue2Loader._fileLoaderQueue[callUrl]=[...(Vue2Loader._fileLoaderQueue[callUrl] || []),promise]
+    })
+}
+
+Vue2Loader.fileLoaderQueueTask=function(){
+    let keys=Object.keys(Vue2Loader._fileLoaderQueue);
+    if(keys.length>0){
+        let curKey=keys[0];
+        if(Vue2Loader._fileLoaderQueue[curKey] && Vue2Loader._fileLoaderQueue[curKey].length>0){
+            let processList=Vue2Loader._fileLoaderQueue[curKey].splice(0,Vue2Loader._fileLoaderQueue[curKey].length)
+            Vue2Loader.getFileLoader0(curKey)
+                .then(resp=>{
+                    processList.forEach(e=>{
+                        e.resolve(resp)
+                    })
+                }).catch(err=>{
+                processList.forEach(e=>{
+                    e.reject(err)
+                })
+                }).finally(()=>{
+                    setTimeout(function(){
+                        Vue2Loader.fileLoaderQueueTask()
+                    },300)
+                })
+            return
+        }
+
+    }
+    setTimeout(function(){
+        Vue2Loader.fileLoaderQueueTask()
+    },300)
+}
+
+setTimeout(function(){
+    Vue2Loader.fileLoaderQueueTask()
+},300)
+
+/**
+ *
+ * @param callUrl {string|null}
+ * @returns {Promise<FileLoaderItem>}
+ */
+Vue2Loader.getFileLoader0 = function (callUrl) {
+    if (!callUrl) {
+        callUrl = window.location.pathname;
+    } else {
+        callUrl = new URL(callUrl, window.location.href).pathname;
+    }
+
     return new Promise(function (resolve, reject) {
         if (Vue2Loader._fileLoaderCache[callUrl]) {
             resolve(Vue2Loader._fileLoaderCache[callUrl])
@@ -686,7 +851,7 @@ Vue2Loader.getFileLoader = function (callUrl) {
         }
 
         let userActionDom = document.createElement('div');
-        userActionDom.innerHTML = '请点击此处，复制路径，开始选择此文件所在路径<br/>' + callUrl;
+        userActionDom.innerHTML = '请点击此处，复制路径，开始选择此文件所在路径<br/>如果不选择，请使用convertor转换项目<br/>' + callUrl;
         userActionDom.style.position = 'fixed';
         userActionDom.style.left = '50%';
         userActionDom.style.top = '50%';
@@ -925,9 +1090,36 @@ Vue2Loader.originFetch = originFetch;
  * @param config {RequestInit|undefined}
  * @returns {Promise<Response>}
  */
-window.fetch = function (url, config) {
+Vue2Loader.resourceFetch = function (url, config) {
     if (window.location.protocol === 'file:') {
-        return Vue2Loader.fetchFile(url)
+        return Promise.reject(false)
+            .catch(err => {
+                let href = url
+                let idx = href.lastIndexOf('?')
+                if (idx >= 0) {
+                    href = href.substring(0, idx) + '.jsonp.js' + href.substring(idx)
+                } else {
+                    href = href + '.jsonp.js'
+                }
+                return Vue2Loader.fetchJsonp(href)
+            }).catch(err => {
+                let href = url
+                let idx = href.lastIndexOf('?')
+                if (idx >= 0) {
+                    href = href.substring(0, idx) + '.iframe.txt' + href.substring(idx)
+                } else {
+                    href = href + '.iframe.txt'
+                }
+                return Vue2Loader.fetchIframe(href)
+            }).catch(err => {
+                return Vue2Loader.fetchFile(url)
+                    .then(function (res) {
+                        if (res.status != 200) {
+                            return Promise.reject(res)
+                        }
+                        return res.text()
+                    })
+            })
             .catch(err => {
                 return originFetch(url, config)
             })
@@ -935,6 +1127,8 @@ window.fetch = function (url, config) {
         return originFetch(url, config)
     }
 }
+
+window.fetch=Vue2Loader.resourceFetch;
 
 /**
  *
@@ -1367,6 +1561,45 @@ Vue2Loader.createVue = function (url, domId = 'app') {
 }
 
 /**
+ * mixin loader helper methods to vue options
+ *
+ * @param vueOptions {object}
+ * @param baseHref {string}
+ * @return {void}
+ */
+Vue2Loader.mixinLoaderMethodsToVueOptions=function(vueOptions,baseHref){
+    vueOptions.methods={
+        ...vueOptions.methods,
+        /**
+         * 返回组件本身的地址
+         *
+         * @return {string}
+         */
+        loaderHref(){
+            return baseHref;
+        },
+        /**
+         * 返回相对于组件的真实地址
+         *
+         * @param url 相对与组件的地址
+         * @return {string}
+         */
+        loaderUrl(url){
+            return new URL(url,this.loaderHref()).href;
+        },
+        /**
+         * 返回相对于组件的真实地址对应的资源
+         *
+         * @param url 相对与组件的地址
+         * @return {Promise<Response>}
+         */
+        loaderResource(url){
+            return fetch(this.loaderUrl(url))
+        }
+    }
+}
+
+/**
  * 递归解析VueOptions中的属性
  * baseHref用于记录传入的VueOptions对应的基本URL路径，进行递归查找依赖时，才能确定真实的URL绝对路径进行加载依赖
  * 将器加载为真实的对象
@@ -1375,6 +1608,7 @@ Vue2Loader.createVue = function (url, domId = 'app') {
  * vueOptions.mixins 将会使用真实对象替换URL指向，实现局部混入
  * vueOptions.directives 将会直接进行Vue.directive指令注册
  * vueOptions.objects 将会将对象都挂载到Vue.prototype原型上
+ * vueOptions.methods 添加几个个固定的方法，用于解析相对于组件的资源地址，详情查看 `Vue2Loader.mixinLoaderMethodsToVueOptions` 实现
  * 使用案例:
  * ************************************************
  * vueOptions={
@@ -1391,21 +1625,31 @@ Vue2Loader.createVue = function (url, domId = 'app') {
  *     objects:{
  *         rsa: '../util/rsa.js'
  *     },
- *     ...
- *     以下是vue其他的配置,区别是上面这部分的写法
+ *     // ...
+ *     // 以下是vue其他的配置,区别是上面这部分的写法
  *     data(){
  *         return {
- *
+ *              sampleText: ''
  *         }
  *     },
  *     mounted(){
  *
  *     },
  *     created(){
- *
+ *          this.sampleFetch();
  *     },
  *     methods:{
- *
+ *          sampleFetch(){
+ *              // 使用注入的loaderUrl解析相对于组件的相对地址
+ *              // 这样才能拿到真实的地址
+ *              // 否则，直接使用fetch的话，这个应该是相对于html文件的地址
+ *              // 而不是相对于组件的地址
+ *              // loaderUrl 的作用就是解析为真实的地址
+ *              let url=this.loaderUrl('./sample.txt')
+ *              fetch(url).then(r=>r.text()).then(t=>{
+ *                  this.sampleText=t;
+ *              })
+ *          }
  *     }
  *
  * }
@@ -1420,6 +1664,8 @@ Vue2Loader.createVue = function (url, domId = 'app') {
  * @return {Promise<Object>} 处理替换完整的VueOptions,引用还是传入的vueOptions
  */
 Vue2Loader.resolveVueDependency = function (vueOptions, baseHref) {
+    Vue2Loader.mixinLoaderMethodsToVueOptions(vueOptions,baseHref)
+
     let arr = []
     if (vueOptions.components) {
         Object.keys(vueOptions.components).forEach(function (key) {
