@@ -20,6 +20,7 @@
 <head>
     <meta charset="UTF-8">
     <title>vue2</title>
+	<!-- 引入VUE -->
     <script src="../vue@2_dist_vue.js"></script>
     <script src="../Vue2Loader.js"></script>
 </head>

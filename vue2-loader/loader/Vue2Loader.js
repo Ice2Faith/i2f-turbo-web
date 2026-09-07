@@ -256,14 +256,14 @@ Vue2Loader.fetchIframe = function (url) {
                 let pre = frameDoc.querySelector('body pre')
                 let text = pre.innerText
 
-                return new Response(text, {
+                resolve(new Response(text, {
                     status: 200,
                     statusText: "OK",
                     headers: {
                         // 强烈建议加上 Content-Type，方便下游的 .json() 或 .text() 方法正确解析
                         'Content-Type': contentType
                     }
-                });
+                }));
             } catch (e) {
                 reject(e)
             }
@@ -367,7 +367,7 @@ Vue2Loader.fetchJsonp = function (url, options) {
                     },30)
                 }else{
                     let text = '404, Jsonp Not Found';
-                    reject(new Response(text, {
+                    resolve(new Response(text, {
                         status: 404,
                         statusText: "404 Jsonp Not Found",
                         headers: {
@@ -1006,6 +1006,7 @@ Vue2Loader.fetchFile = function (url) {
 
             let htmlPath = new URL(window.location.href).pathname;
             let resPath = new URL(url, window.location.href).pathname;
+            let candidatePath=resPath;
 
             let rootPath = htmlPath;
             let idx = htmlPath.lastIndexOf('/');
@@ -1016,6 +1017,22 @@ Vue2Loader.fetchFile = function (url) {
             resPath = resPath.substring(rootPath.length);
 
             let fileItems = arr.filter(e => e.path == resPath);
+
+            if(!fileItems || fileItems.length==0){
+                // 可能是相对路径，进行最大路径匹配
+                idx=candidatePath.lastIndexOf('/');
+                if(idx>=0){
+                    let fileName=candidatePath.substring(idx+1);
+                    let candidateItems=arr.filter(e=>e.path.endsWith(fileName));
+                    if(candidateItems && candidateItems.length>0) {
+                        candidateItems.sort((a, b) =>  a.path.length > b.path.length ? -1 : 1);
+                        fileItems = candidateItems.filter(e => candidatePath.endsWith(e.path))
+                        if(fileItems && fileItems.length>0) {
+                            resPath = fileItems[0].path;
+                        }
+                    }
+                }
+            }
 
             let contentType = 'text/html';
 
@@ -1113,12 +1130,6 @@ Vue2Loader.resourceFetch = function (url, config) {
                 return Vue2Loader.fetchIframe(href)
             }).catch(err => {
                 return Vue2Loader.fetchFile(url)
-                    .then(function (res) {
-                        if (res.status != 200) {
-                            return Promise.reject(res)
-                        }
-                        return res.text()
-                    })
             })
             .catch(err => {
                 return originFetch(url, config)
