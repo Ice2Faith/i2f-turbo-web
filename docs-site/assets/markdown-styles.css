@@ -1,0 +1,132 @@
+/* markdown 代码块样式 */
+.markdown-code-block {
+
+}
+
+.markdown-code-block .markdown-code-header {
+    background: #ccc;
+    color: white;
+    border-radius: 8px 8px 0px 0px;
+    padding: 2px 8px;
+    clear: both;
+    position: relative;
+}
+
+.markdown-code-block .markdown-header-lang {
+
+}
+
+.markdown-code-block .markdown-header-actions {
+    float: right;
+}
+
+.markdown-code-block .markdown-header-actions > * {
+    margin-left: 8px;
+}
+
+.markdown-code-block .markdown-header-actions > *:hover {
+    color: deepskyblue;
+}
+
+.markdown-code-block .markdown-header-actions .code-action-btn {
+    cursor: pointer;
+    font-style: normal;
+    font-size: 14px;
+    user-select: none;
+    display: inline-block;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.15s;
+}
+
+.markdown-code-block .markdown-header-actions .code-action-btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.markdown-code-block .markdown-code-body {
+    margin-top: 0px;
+    border-radius: 0px 0px 8px 8px;
+    padding: 12px 6px;
+    line-height: 1.5;
+    display: flex !important;
+    align-items: flex-start;
+}
+
+.mermaid-code-block {
+    width: 100%;
+    min-width: 480px;
+    min-height: 320px;
+    background: white;
+}
+
+.svg-code-block {
+    width: 100%;
+    overflow-x: auto;
+    background: var(--panel);
+}
+
+.svg-code-block svg {
+    display: block;
+    margin: 6px auto;
+    max-width: 100%;
+    height: auto;
+}
+
+
+/* 行号列样式 */
+.markdown-code-lines {
+    flex-shrink: 0;
+    text-align: right;
+    padding: 0 8px 0 3px;
+    color: #999;
+    user-select: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.markdown-code-lines .line-number {
+    display: block;
+}
+
+/* 代码区域自适应剩余宽度 */
+.markdown-code-body code {
+    flex: 1;
+    padding-left: 12px;
+    display: block;
+    overflow-x: auto;
+}
+
+
+.markdown-code-body textarea {
+    width: 100%;
+    background: transparent;
+    padding: 3px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none; /* 禁用右下角拖拽手柄 */
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+/* 鼠标悬停状态 */
+.markdown-code-body textarea:hover {
+    border-color: #9ca3af;
+}
+
+/* 获取焦点状态 */
+.markdown-code-body textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* 外部发光效果 */
+}
+
+@media print {
+    .markdown-header-actions{
+        display: none;
+    }
+}
+
+
